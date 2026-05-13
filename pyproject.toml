@@ -47,8 +47,15 @@ dev = [
 lint      = "ruff check src tests"
 format    = "ruff format src tests"
 typecheck = "mypy src tests"
-test      = "pytest"
-# `serve` and `migrate` added in Phase 0 tasks 0.10 and 0.3 respectively.
+
+# Default `test` runs unit only for fast TDD feedback (~0.3s).
+# Use `poe test-all` before pushing, or `poe test-fast` to rerun only failures.
+test      = "pytest tests/unit"
+test-int  = "pytest tests/integration"
+test-all  = "pytest"
+test-fast = "pytest --lf -q"
+
+# `migrate` added in Phase 0 task 0.3.
 
 # ─── ruff ─────────────────────────────────────────────────────────────────────
 [tool.ruff]
