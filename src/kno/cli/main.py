@@ -7,8 +7,10 @@
 from __future__ import annotations
 
 import typer
+import uvicorn
 
 from kno import __version__
+from kno.config import Settings
 
 app = typer.Typer(
     name="kno",
@@ -32,6 +34,17 @@ def _root() -> None:
 def version() -> None:
     """Print the installed Kno version."""
     typer.echo(f"kno {__version__}")
+
+
+@app.command()
+def serve() -> None:
+    """Run the Kno web shell (FastAPI app behind uvicorn).
+
+    Host/port come from ``Settings`` so ``KNO_HOST`` / ``KNO_PORT`` env vars
+    override the defaults (``0.0.0.0:8000``).
+    """
+    settings = Settings()
+    uvicorn.run("kno.web.app:app", host=settings.host, port=settings.port)
 
 
 if __name__ == "__main__":

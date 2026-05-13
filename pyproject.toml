@@ -13,6 +13,9 @@ dependencies = [
     # Task 0.2 — lenient-boot Settings (env vars + .env file).
     "pydantic>=2.7,<3",
     "pydantic-settings>=2.4,<3",
+    # Issue #1 — web shell (Hello-Kno milestone).
+    "fastapi>=0.115,<1.0",
+    "uvicorn[standard]>=0.30,<1.0",
 ]
 
 [project.scripts]
@@ -32,6 +35,8 @@ dev = [
     "pytest-asyncio>=0.23",
     "pre-commit>=3.7",
     "poethepoet>=0.30",
+    # Issue #1 — TestClient for FastAPI routes.
+    "httpx>=0.27,<1.0",
 ]
 
 # ─── Task runner ──────────────────────────────────────────────────────────────
@@ -42,8 +47,15 @@ dev = [
 lint      = "ruff check src tests"
 format    = "ruff format src tests"
 typecheck = "mypy src tests"
-test      = "pytest"
-# `serve` and `migrate` added in Phase 0 tasks 0.10 and 0.3 respectively.
+
+# Default `test` runs unit only for fast TDD feedback (~0.3s).
+# Use `poe test-all` before pushing, or `poe test-fast` to rerun only failures.
+test      = "pytest tests/unit"
+test-int  = "pytest tests/integration"
+test-all  = "pytest"
+test-fast = "pytest --lf -q"
+
+# `migrate` added in Phase 0 task 0.3.
 
 # ─── ruff ─────────────────────────────────────────────────────────────────────
 [tool.ruff]
