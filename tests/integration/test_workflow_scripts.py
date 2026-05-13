@@ -180,3 +180,46 @@ class TestIsApproved:
 
     def test_no_verdict_at_all(self, pr_review_gate):
         assert pr_review_gate.is_approved("nothing useful here") is False
+
+
+# ─── pr_validate ──────────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def pr_validate():
+    return _load("pr_validate")
+
+
+class TestValidateBranchName:
+    @pytest.mark.parametrize(
+        "branch",
+        [
+            "feat/12-google-oauth",
+            "fix/47-config-leak",
+            "chore/3-bump-pydantic",
+            "docs/22-ops-manual",
+            "refactor/14-workflow-scripts",
+            "test/99-coverage",
+            "ci/1-add-runner",
+            "build/2-trim-image",
+        ],
+    )
+    def test_valid_branch_names_have_no_failures(self, pr_validate, branch):
+        assert pr_validate.validate_branch_name(branch) == []
+
+    @pytest.mark.parametrize(
+        "branch",
+        [
+            "junk-name",         # no type/n-slug structure
+            "feature/12-x",      # 'feature' isn't an allowed type
+            "Feat/12-x",         # caps
+            "feat/12_x",         # underscore in slug
+            "feat/abc-foo",      # non-numeric issue number
+            "feat/-bar",         # missing issue number
+            "feat/12-",          # missing slug
+        ],
+    )
+    def test_invalid_branch_names_have_one_failure(self, pr_validate, branch):
+        failures = pr_validate.validate_branch_name(branch)
+        assert len(failures) == 1
+        assert branch in failures[0]
