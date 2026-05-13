@@ -77,6 +77,8 @@ ls docs/
 
 ## 3. Provider setup
 
+> **Read this section once. Do these steps once.** After §3 is done, signing in with another account inside Kno is a single button click in `/ui/connections` (§6) — no developer-console trips, no env-var edits, no Kno restart. The manual is dense here because OAuth-app registration is dense; the actual product experience isn't. Don't let §3's volume scare you — the recurring user experience lives in §7 and beyond.
+
 This is the section to read carefully. It's the densest part of setup and the most common source of "I copied a value to the wrong field" errors.
 
 The order below goes from **simplest** (Anthropic — one click) to **most involved** (GitHub OAuth Apps — you may need two). Do them in this order; later steps depend on earlier ones.
@@ -228,6 +230,8 @@ KNO_GOOGLE_CLIENT_SECRET=GOCSPX-XXXXXXXXXXXX
 
 If the redirect goes nowhere (browser stays on Google), check the Authorized Redirect URI in step 15 against what Kno actually called (server logs will show).
 
+**→ This is a one-time deployer task.** Once Kno is running, adding another Google account (e.g. your work account in addition to personal) is a single button click in `/ui/connections` — no return to Google Cloud Console.
+
 ---
 
 ### 3.4 GitHub OAuth Apps
@@ -284,7 +288,9 @@ KNO_GITHUB_CLIENT_SECRET=XXXXXXXXXXXXXXXXXXXXXXXX
 - Open `http://localhost:8000/ui/connections`.
 - Click **"Connect with GitHub"**.
 - GitHub asks you to authorize Kno (with the `repo` scope, per `src/kno/auth/providers/github.py`).
-- Approve → redirect back to `/ui/connections` showing GitHub as connected with your username and a "Personal" label (default).
+- Approve → redirect back to `/ui/connections` showing GitHub as connected. The connection label defaults to your GitHub login (e.g. `dvhthomas`); rename inline if you want.
+
+**→ This is a one-time deployer task.** Once Kno is running, adding another GitHub account (e.g. your work-org access in addition to personal) is a single button click in `/ui/connections` — no return to GitHub Developer Settings.
 
 ---
 
@@ -464,7 +470,13 @@ If `ok: false`, the JSON tells you which subsystem failed. Fix and restart.
 2. Click **"Connect with GitHub"**.
 3. GitHub asks you to authorize Kno with the `repo` scope.
 4. Approve.
-5. Redirect back to `/ui/connections` showing GitHub as connected.
+5. Redirect back to `/ui/connections` showing GitHub as connected — the connection's default label is your GitHub login (e.g. `dvhthomas`); you can rename it inline.
+
+**To add another GitHub account later** (e.g. you're a member of `alwaysmap-org` and want Kno to access org repos that your personal account can't):
+- Sign out of GitHub in the browser, sign back in with the other account.
+- Click **"+ Connect another GitHub account"** at `/ui/connections`.
+- New OAuth flow with the second account → second `service_connections` row written.
+- Both accounts are now selectable per workflow (per ADR-0019 §2.5).
 
 **Verify the token actually works:**
 

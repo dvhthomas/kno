@@ -191,12 +191,25 @@ For each MCP server in `tools.allow` that requires a provider connection, the fo
 ```
 ☑ mcp:github
     Available GitHub accounts:
-     ☑ Personal       (last used 1h ago)
-     ☐ Work — alwaysmap
+     ☑ dvhthomas              (last used 1h ago)
+     ☐ alwaysmap-org          (added today)
      [ + Connect another GitHub account ]
 ```
 
-A separate `[ + Connect another <provider> account ]` link opens the standard `/ui/connections` OAuth flow with a banner "connecting will return you here." After the new connection is saved, the user is bounced back to the workflow edit page with the new account appearing as an unchecked checkbox.
+##### Connection labeling: auto from OAuth profile (zero-input UX)
+
+When a user completes an OAuth flow for a new connection, **the default `connection_label` is auto-populated from the OAuth profile** — specifically the provider's `email` or `name`/`login` claim, in that priority order. For example:
+
+- New Google connection → label = `dylan.thomas@gmail.com` (the `email` claim).
+- New GitHub connection → label = `dvhthomas` (the `login` claim).
+
+The user can rename via `/ui/connections` (inline edit) if they want a friendlier label (`"Personal"`, `"Work"`), but the **default zero-input path Just Works**. No "what should I call this connection?" modal interrupts the OAuth callback. The unique constraint is satisfied automatically (emails and GitHub logins are unique per provider).
+
+**Why this is the right default**: (a) the OAuth profile data is already in hand at callback time; (b) the value is meaningful to the user (their own email/handle); (c) people who care about pretty labels rename; people who don't never see a prompt.
+
+##### "+ Connect another" flow
+
+A `[ + Connect another <provider> account ]` link in the per-workflow checkbox panel (or at `/ui/connections`) opens the standard provider OAuth flow with a banner "connecting will return you here." The provider's consent screen lets the user pick which account (Google and GitHub both support this natively). On callback: new `service_connections` row written with auto-label, bounce back to the workflow edit page with the new connection appearing as an unchecked checkbox (or to `/ui/connections` if that's where they came from).
 
 ##### Resolution rule at tool-call time
 
