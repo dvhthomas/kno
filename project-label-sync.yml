@@ -12,12 +12,17 @@
 # once you've created it. See docs/notes/dev-flow.md for the one-time
 # setup steps.
 
-project-url: https://github.com/users/dvhthomas/projects/REPLACE_ME
+project-url: https://github.com/users/dvhthomas/projects/3
 field: Status
+# Ideas and Shaping are intentionally unmapped — no label is applied while
+# work is being thought about, only once it's active. project-label-sync
+# quietly ignores unmapped statuses.
 mapping:
   "In progress":
     - in-progress
+  Blocked:
+    - blocked
   "In review":
     - in-review
-  Done:
+  Shipped:
     - done

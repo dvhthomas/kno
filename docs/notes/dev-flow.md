@@ -40,17 +40,34 @@ Four buckets. Each managed by a different mechanism so authority is clear:
 | Bucket | Examples | Managed by |
 |---|---|---|
 | **Type** | `bug`, `enhancement`, `documentation`, `chore` | `.github/labels.yml` → synced by `.github/workflows/labels.yml` on push to `main` |
-| **Lifecycle** | `in-progress`, `in-review`, `done` | `dvhthomas/project-label-sync` via `project-label-sync.yml` — driven from the Projects v2 board, runs every 15 min |
+| **Lifecycle** | `in-progress`, `blocked`, `in-review`, `done` | `dvhthomas/project-label-sync` via `project-label-sync.yml` — driven from the Projects v2 board, runs every 15 min |
 | **Area** | `area:agent`, `area:auth`, `area:web`, … | `.github/labels.yml` |
 | **Status flags** | `blocked`, `release-blocker`, `wontfix`, `duplicate`, `good first issue` | `.github/labels.yml` |
 
 **The big rule: don't apply lifecycle labels by hand.** Drag the issue's card on the Projects v2 board and the label appears automatically. Hand-applying `in-progress` works (the sync is bidirectional) but the board is the canonical source.
 
+## Project board: when can a card move?
+
+Six columns on [project 3](https://github.com/users/dvhthomas/projects/3): **Ideas → Shaping → In progress → Blocked → In review → Shipped**. Each has a tiny **DoR** (must be true to *be* in this column) and **DoD** (must be true to *leave* it). Kept short on purpose — the columns are status, not gates.
+
+| Column | DoR — to enter | DoD — to leave for the next column |
+|---|---|---|
+| **Ideas** | The idea exists. One line is fine. | You'd consider doing it; a `type:` label is applied. |
+| **Shaping** | A type label is applied. | The card has enough description for someone (or an agent) to start cleanly: what + why + how you'd know it's done. |
+| **In progress** | A branch exists (`<type>/<issue#>-<slug>`); first TDD red→green cycle landed. | A PR is open against `main` with `Closes #<n>`; CI is running. |
+| **Blocked** | Work started but can't continue; a comment explains why. | Blocker resolved → back to **In progress**. |
+| **In review** | PR open; CI green. | PR merged → **Shipped**. (Rejected? Move card back to **Ideas** with the rejection comment.) |
+| **Shipped** | PR merged; issue auto-closed. | Terminal. |
+
+**Anti-rule.** Don't add ceremony. If a card needs more thought, leave a comment; don't invent a longer DoR.
+
+**For agents.** Before opening a PR, make sure the card is in **In progress** (move it there if not). After opening, leave it where it is — `project-label-sync` flips the label when a human drags the card to **In review**. If you find a card in the wrong column, just move it; don't ask.
+
 ### One-time setup before label sync works
 
 This needs doing once when you first push the repo:
 
-1. **Create a Projects v2 board** for Kno at https://github.com/users/dvhthomas/projects — pick a "Kanban" template or build columns: `Todo` / `In progress` / `In review` / `Done`.
+1. **Create a Projects v2 board** at https://github.com/users/dvhthomas/projects with the columns above (Ideas, Shaping, In progress, Blocked, In review, Shipped). *(Already done — [project 3](https://github.com/users/dvhthomas/projects/3).)*
 2. **Update the project URL** in `project-label-sync.yml` → `project-url:`.
 3. **Create a classic personal-access token** with `project` + `repo` scopes:
    https://github.com/settings/tokens/new?scopes=project,repo&description=kno-project-label-sync
