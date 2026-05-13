@@ -23,4 +23,4 @@ Personal agent harness. Run agentic workflows from a web browser; depend on it d
 
 ## License
 
-TBD before public release.
+[MIT](LICENSE). Copyright © 2026 Dylan Thomas.
