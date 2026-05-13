@@ -19,8 +19,11 @@ The cycle in brief — see `/agent-skills:test` for the full discipline:
 - Bulk-implementing many features then making many tests pass at once.
 - Refactoring while tests are red.
 
+## Strict dev-flow compliance
+
+**All work in this repo MUST follow [`docs/notes/dev-flow.md`](docs/notes/dev-flow.md): branch naming, PR-based flow, label and board mechanics, conventional commit prefixes, and the closing rule. Non-compliant changes will be rejected out of hand.**
+
 ## See also
 
-- [`docs/notes/dev-flow.md`](docs/notes/dev-flow.md) — branching, labels, PR template, how to query flow data for this repo (via `flowmetrics`, eventually the Flow Coach workflow).
 - [`docs/spec.md`](docs/spec.md) — full design, v1 scope per ADR-0018.
 - [`docs/plan.md`](docs/plan.md) / [`docs/tasks.md`](docs/tasks.md) — build plan + task list.
