@@ -1,0 +1,41 @@
+# Fly app config. Pre-launch — `app` and `primary_region` are filled in by
+# `fly launch --no-deploy`. Everything below (port, health check, volume
+# mount, machine size) is pinned here so `fly launch` keeps it.
+
+# app = "..."             # set by `fly launch`
+# primary_region = "..."  # set by `fly launch`
+
+[build]
+# Uses the local Dockerfile. No buildpack needed.
+
+[env]
+# Lenient-boot Settings (per ADR-0018) means no other env vars are required
+# for the Hello-Kno milestone. Later milestones add OAuth / Anthropic via
+# `fly secrets set …`.
+
+[http_service]
+internal_port = 8080
+force_https = true
+auto_stop_machines = "stop"
+auto_start_machines = true
+min_machines_running = 0
+processes = ["app"]
+
+[[http_service.checks]]
+interval = "30s"
+timeout = "5s"
+grace_period = "10s"
+method = "GET"
+path = "/api/health"
+
+[[vm]]
+size = "shared-cpu-1x"
+memory = "512mb"
+cpu_kind = "shared"
+cpus = 1
+
+# Mount the persistent volume that future tasks (DB, KB) will need. Volume is
+# created via `fly volumes create kno_data --size 1 --region <region>`.
+[[mounts]]
+source = "kno_data"
+destination = "/data"
