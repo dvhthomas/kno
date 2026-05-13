@@ -1,10 +1,20 @@
 # Spec: Kno — Personal Agent Harness
 
-> **Status:** Draft **v0.5** (Phase 1, Specify). Living document — update before code, not after.
+> **Status:** Draft **v0.9** (Phase 1, Specify). Living document — update before code, not after.
 > **Owner:** Dylan Thomas (`dvhthomas@gmail.com`)
 > **Last updated:** 2026-05-12
 
-> **v0.8 highlights** (full change log §24): **Unified `kno` entry point.** No separate `kno-cli`; no `kno chat`. The browser is canonical for chat and approval. `uv run kno serve` runs the FastAPI server; `uv run kno <subcommand>` covers ops (backup, restore, eval, policy lint, ingest, data reload, workflows list). Approval flow is browser-only (§13). OQ-12 (CLI approval UX) dropped. Spec §5 + §6 simplified accordingly.
+> ## ⚠️ v1 scope is **Kno-Lite** (per ADR-0018)
+>
+> **This spec is the full design vision and v2 roadmap.** What ships in v1 is the scoped-down **Kno-Lite**: single user, two primitives (Skill + Workflow), three workflows (default chat, flow-coach, kb-qa), one KB source kind (Hugo source repos), simplified approval (`read` auto / `write` paused), per-session cost cap only. **No multi-user, no Panel of Experts, no sub-agents, no Drive/upload/HTTP-crawler KB sources, no Slack/Notion/Granola OAuth scaffolding, no DSPy, no `coordinator: script` escape hatch.**
+>
+> Read **ADR-0018** for the full scope decision, the v1-vs-v2 line, the 10 things added/sharpened beyond v0.8, and the "pi.ai play" reframing that drove it.
+>
+> **Why the spec still includes the deferred sections:** they're the v2 roadmap. The design work isn't wasted. When a real second user appears (or v1 reveals genuine need), ADR-0018 is the place to revert / extend from.
+>
+> **v0.9 highlights** (full change log §24): Added the Kno-Lite scope callout linking to ADR-0018. All other sections remain valid as the v2 reference.
+>
+> **v0.8 highlights:** Unified `kno` entry point; dropped `kno-cli`. Approval flow browser-only. OQ-12 resolved by deletion.
 >
 > **v0.7 highlights:** Local-on-laptop as a first-class deployment mode. ADR-0015 added with honest substrate portability matrix and SQLite scale-trigger thresholds.
 >
@@ -1357,3 +1367,4 @@ Kno v1 is "shipped" when:
 | 2026-05-12 | v0.6 | Renamed **Board → Panel of Experts** (clearer). New **§10 Knowledge Base** unifies multi-source ingestion (Hugo repo, generic GitHub repo, Google Drive folder, direct upload PDF/MD/TXT, HTTP fallback). Substrate question ("pgvector?") answered with explicit scale math — sticking with sqlite-vec for v1. New **§13 Action Approval & Side-Effect Policy**: every external write or message requires approval; `external_messaging` requires typed confirmation; `irreversible` requires typed confirmation + cooldown. Fail-closed default. Addressed the "soul / constitution" question directly: no constitution file needed — persona.md is the soul; approval gates are the runtime safeguard. Sections §10–§22 renumbered to §11–§24 to make room. OQ-11 (initial policy.yaml) and OQ-12 (CLI approval UX) added. |
 | 2026-05-12 | v0.7 | **Local-on-laptop is a first-class supported deployment mode** (§1 "Deployment modes"), not a dev artifact. Same FastAPI codebase; runtime choice. §4 Hosting row updated. Substrate portability hardened in §10.4: explicit pointer to ADR-0015 which carries the `RetrievalBackend` interface, the honest portability matrix (truly portable / portable with care / needs abstraction), and objective scale-triggers for the Postgres migration. Misconception ("SQLite breaks at multi-user") explicitly addressed in ADR-0015 §3 with write-throughput numbers. |
 | 2026-05-12 | v0.8 | **Unified `kno` entry point**; dropped the separate `kno-cli`. No `kno chat` (browser is canonical for chat). Approval flow is browser-only; OQ-12 dropped. §5 Commands collapsed to one `kno <subcommand>` block. §6 Project Structure: `src/kno/cli/` is now a thin Typer wrapper that dispatches to `services/`. §13.3 approval surface section trimmed. Phase 3 task 3.10 (CLI approval UX) deleted from tasks.md. |
+| 2026-05-12 | v0.9 | **Scope reduction to Kno-Lite for v1**, captured in ADR-0018. Single user, two primitives (Skill + Workflow), three workflows, Hugo-only KB, simplified approval, per-session cap only. Spec gains a prominent top callout pointing at ADR-0018. Plan compressed from 7 phases to 3. Tasks rewritten. Spec sections remain as the v2 reference. Added items beyond v0.8: conversation resumption, agent-writeable semantic memory, integrity checks, anti-loop rate limit, citation integrity check, prompt-injection test battery, token-vault rotation playbook, data-deletion contract, fallback usability test, cost-as-signal agent state field. |
