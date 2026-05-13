@@ -48,7 +48,7 @@ Note: **no OAuth credentials, no Anthropic key, no Ollama pulls** are needed yet
 
 | Task | Status | What it produces |
 |---|---|---|
-| `tasks.md` 0.1 — project skeleton | needed | `pyproject.toml`, `Makefile`, `src/kno/__init__.py`, `tests/conftest.py` |
+| `tasks.md` 0.1 — project skeleton | needed | `pyproject.toml` (incl. `[tool.poe.tasks]`), `uv.lock`, `.pre-commit-config.yaml`, `src/kno/__init__.py`, `tests/conftest.py` |
 | `tasks.md` 0.2 — config layer | needed | `kno.config.Settings`; **must boot cleanly with no secrets set** (setup-mode style; missing-secrets becomes `{provider}: not_configured` in `/api/health`, not a crash) |
 | `tasks.md` 0.10 — web shell + health | needed | `GET /api/health`; `GET /ui/` placeholder |
 | `tasks.md` 2.7 — Dockerfile + `fly.toml` (minimal) | pulled forward | A multi-stage Dockerfile + a `fly.toml` with the volume mount |

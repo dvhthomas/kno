@@ -35,9 +35,9 @@ Conventions:
 ## Phase 0 — Foundation + Chat (target: 2 weeks)
 
 ### 0.1 Project skeleton **[B][F]**
-- Acceptance: `pyproject.toml` with pinned deps (`fastapi`, `uvicorn[standard]`, `httpx`, `pydantic`, `pydantic-settings`, `sqlalchemy`, `aiosqlite`, `alembic`, `litellm`, `langgraph`, `langgraph-checkpoint-sqlite`, `anthropic`, `ollama`, `authlib`, `cryptography`, `mcp`, `python-frontmatter`, `markdown-it-py`, `jinja2`, `typer`, `structlog`); `uv.lock`; ruff + mypy --strict + pytest + pre-commit; Makefile with `dev` `test` `lint` `mypy` `migrate` `serve`.
-- Verify: `uv sync` clean venv; `make lint` passes; `pre-commit install` succeeds; `make test` runs 0 tests OK.
-- Files: `pyproject.toml`, `uv.lock`, `.pre-commit-config.yaml`, `Makefile`, `tests/conftest.py`.
+- Acceptance: `pyproject.toml` with pinned deps (`fastapi`, `uvicorn[standard]`, `httpx`, `pydantic`, `pydantic-settings`, `sqlalchemy`, `aiosqlite`, `alembic`, `litellm`, `langgraph`, `langgraph-checkpoint-sqlite`, `anthropic`, `ollama`, `authlib`, `cryptography`, `mcp`, `python-frontmatter`, `markdown-it-py`, `jinja2`, `typer`, `structlog`); `uv.lock`; ruff + mypy --strict + pytest + pre-commit; **`[tool.poe.tasks]` block** declaring `lint` / `format` / `typecheck` / `test` / `serve` / `migrate`. Install `poethepoet` globally once via `uv tool install poethepoet`. No Makefile.
+- Verify: `uv sync` clean venv; `poe lint` passes; `pre-commit install` succeeds; `poe test` runs 0 tests OK.
+- Files: `pyproject.toml`, `uv.lock`, `.pre-commit-config.yaml`, `tests/conftest.py`.
 
 ### 0.2 Config layer **[F]** *Depends on 0.1*
 - Acceptance: `kno.config.Settings` (pydantic-settings) loads required env vars; fail-fast on missing.
@@ -168,7 +168,7 @@ Conventions:
 - [ ] `kno backup` + `kno restore` round-trip works.
 - [ ] `kno wipe --category conversations --confirm` clears conversations only.
 - [ ] Anti-loop test passes.
-- [ ] `make test`, `make lint`, `make mypy` all green.
+- [ ] `poe test`, `poe lint`, `poe typecheck` all green.
 - [ ] `docs/verification/phase-0.md` committed with notes.
 
 ---

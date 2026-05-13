@@ -99,7 +99,7 @@ Each skill is a 1–2 page markdown body the owner writes (or has Kno-the-design
 
 #### Deliverables (in approximate dependency order)
 
-1. **Project skeleton**: `pyproject.toml` with pinned deps, `uv.lock`, ruff + mypy --strict + pytest + pre-commit, Makefile.
+1. **Project skeleton**: `pyproject.toml` with pinned deps + `[tool.poe.tasks]`, `uv.lock`, ruff + mypy --strict + pytest + pre-commit. **No Makefile** — `poethepoet` is the task runner (installed once globally via `uv tool install poethepoet`).
 2. **Config layer** (`kno.config`): pydantic-settings; required env vars; fail-fast on missing.
 3. **Database (Migration 0001)**: `users`, `sessions`, `service_connections`, `model_calls`, `runs`, `messages`, `tool_calls`, `audit_log`, `semantic_facts`. SQLite WAL. SQLAlchemy 2.x async. `UserScopedSession` wrapper ships (per ADR-0010, downgraded — single-user verification only).
 4. **LangGraph base** (per ADR-0002): `AgentState` TypedDict including `budget_remaining_usd` field (item 10 from ADR-0018 §2.3). `AsyncSqliteSaver` checkpointer pointed at `data/kno.db` (per ADR-0011).
@@ -131,7 +131,7 @@ Each skill is a 1–2 page markdown body the owner writes (or has Kno-the-design
 - [ ] `kno backup` produces a tar.gz; `kno restore <archive>` against a wiped data dir restores both the SQLite DB and the file-based config.
 - [ ] `kno wipe --category conversations` removes all `runs`, `messages`, `tool_calls`, `model_calls`, `run_feedback` rows for the current user; leaves `semantic_facts` untouched.
 - [ ] Anti-loop test: a synthetic workflow that calls `remember_fact("counter", "<n>")` in a loop is killed after 10 invocations.
-- [ ] `make test`, `make lint`, `make mypy` all green.
+- [ ] `poe test`, `poe lint`, `poe typecheck` all green.
 
 #### ADRs to draft in Phase 0
 
