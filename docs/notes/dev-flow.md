@@ -46,24 +46,82 @@ Four buckets. Each managed by a different mechanism so authority is clear:
 
 **The big rule: don't apply lifecycle labels by hand.** Drag the issue's card on the Projects v2 board and the label appears automatically. Hand-applying `in-progress` works (the sync is bidirectional) but the board is the canonical source.
 
-## Project board: when can a card move?
+## Project board: how to move a card
 
-Six columns on [project 3](https://github.com/users/dvhthomas/projects/3): **Ideas → Shaping → In progress → Blocked → In review → Shipped**. Each has a tiny **DoR** (must be true to *be* in this column) and **DoD** (must be true to *leave* it). Kept short on purpose — the columns are status, not gates.
+Six columns on [project 3](https://github.com/users/dvhthomas/projects/3): **Ideas → Shaping → In progress → Blocked → In review → Shipped**.
 
-| Column | DoR — to enter | DoD — to leave for the next column |
-|---|---|---|
-| **Ideas** | The idea exists. One line is fine. | You'd consider doing it; a `type:` label is applied. |
-| **Shaping** | A type label is applied. | The card has enough description for someone (or an agent) to start cleanly: what + why + how you'd know it's done. |
-| **In progress** | A branch exists (`<type>/<issue#>-<slug>`); first TDD red→green cycle landed. | A PR is open against `main` with `Closes #<n>`; CI is running. |
-| **Blocked** | Work started but can't continue; a comment explains why. | Blocker resolved → back to **In progress**. |
-| **In review** | PR open; CI green. | PR merged → **Shipped**. (Rejected? Move card back to **Ideas** with the rejection comment.) |
-| **Shipped** | PR merged; issue auto-closed. | Terminal. |
+`project-label-sync` is bidirectional — the `gh` commands below drive the entire flow without touching the board UI; the board moves to match within 15 minutes. (Or drag the card on the board; the labels follow.)
 
-**Why Shaping gets a label but Ideas doesn't.** Moving a card to Shaping means the work has been picked up — that starts the **lead time** clock (the `shaping` label's first-applied timestamp). **Cycle time** still doesn't start until **In progress** (the `in-progress` label). Ideas is the parking lot for things we haven't picked up; no clocks running.
+> Commands assume you're inside the kno checkout so `gh` infers the repo. Add `--repo dvhthomas/kno` if you're elsewhere.
 
-**Anti-rule.** Don't add ceremony. If a card needs more thought, leave a comment; don't invent a longer DoR.
+### Create issue (lands in **Ideas**)
 
-**For agents.** Before opening a PR, make sure the card is in **In progress** (move it there if not). After opening, leave it where it is — `project-label-sync` flips the label when a human drags the card to **In review**. If you find a card in the wrong column, just move it; don't ask.
+```bash
+gh issue create --title "feat: …" --body "…"
+gh issue edit <n> --add-label enhancement     # or: bug | documentation | chore
+```
+
+### **Ideas → Shaping** — work picked up; lead time starts; open the draft PR
+
+```bash
+gh issue edit <n> --add-label shaping
+
+# Cut a branch + open a draft PR as the design-conversation vehicle
+git checkout -b <type>/<n>-<slug>             # e.g. feat/12-google-signin
+git commit --allow-empty -m "<type>(<area>): start shaping for #<n>"
+git push -u origin HEAD
+gh pr create --draft --base main \
+    --title "<type>: …" --body "Closes #<n>"
+```
+
+First commits in Shaping can be design notes, a failing test, or an empty placeholder. Production code waits for **In progress** (strict TDD per [`AGENTS.md`](../../AGENTS.md)).
+
+### **Shaping → In progress** — active work begins; cycle time starts
+
+```bash
+gh issue edit <n> --remove-label shaping --add-label in-progress
+```
+
+Strict TDD from here: red → green → refactor for every production code change. Push to the existing draft PR.
+
+### **In progress → Blocked** — sideways step
+
+```bash
+gh issue comment <n> --body "Blocked on <reason>. Will resume when <condition>."
+gh issue edit <n> --remove-label in-progress --add-label blocked
+```
+
+### **Blocked → In progress** — blocker resolved
+
+```bash
+gh issue edit <n> --remove-label blocked --add-label in-progress
+```
+
+### **In progress → In review** — mark PR ready for human review
+
+```bash
+gh pr ready <pr#>
+gh issue edit <n> --remove-label in-progress --add-label in-review
+```
+
+### **In review → Shipped** — merge
+
+```bash
+gh pr merge <pr#> --squash --delete-branch
+# Issue auto-closes via `Closes #<n>` in the PR body.
+# `done` label arrives within 15 min via project-label-sync.
+```
+
+### **In review → rejected** — back to Ideas
+
+```bash
+gh issue comment <n> --body "Rejecting because <reason>."
+gh pr close <pr#>
+gh issue edit <n> --remove-label in-review
+# Drag the card back to Ideas on the board.
+```
+
+**Rule of thumb.** The board is a status tool, not a gate. If a card is in the wrong column, move it; don't ask.
 
 ### One-time setup before label sync works
 
