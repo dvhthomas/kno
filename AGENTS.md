@@ -21,6 +21,6 @@ The cycle in brief — see `/agent-skills:test` for the full discipline:
 
 ## See also
 
-- [`docs/notes/dev-flow.md`](docs/notes/dev-flow.md) — branching, labels, PR template, how to query flow data for this repo (`flowmetrics`, `gh-velocity`, Flow Coach).
+- [`docs/notes/dev-flow.md`](docs/notes/dev-flow.md) — branching, labels, PR template, how to query flow data for this repo (via `flowmetrics`, eventually the Flow Coach workflow).
 - [`docs/spec.md`](docs/spec.md) — full design, v1 scope per ADR-0018.
 - [`docs/plan.md`](docs/plan.md) / [`docs/tasks.md`](docs/tasks.md) — build plan + task list.

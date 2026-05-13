@@ -8,9 +8,6 @@
 #   - Add the `in-progress` label by hand → the card moves to "In progress"
 #     on the board on the next run.
 #
-# The label timestamps are what gh-velocity reads for cycle time — see
-# `.gh-velocity.yml`'s `lifecycle.in-progress.match` entry.
-#
 # ⚠ Edit the project-url below to point at the correct Projects v2 board
 # once you've created it. See docs/notes/dev-flow.md for the one-time
 # setup steps.

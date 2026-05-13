@@ -51,9 +51,7 @@ Four buckets. Each managed by a different mechanism so authority is clear:
 This needs doing once when you first push the repo:
 
 1. **Create a Projects v2 board** for Kno at https://github.com/users/dvhthomas/projects — pick a "Kanban" template or build columns: `Todo` / `In progress` / `In review` / `Done`.
-2. **Update the project URL in two places:**
-   - `project-label-sync.yml` → `project-url:` (drives label sync)
-   - `.gh-velocity.yml` → `project.url:` (drives WIP reads from the board)
+2. **Update the project URL** in `project-label-sync.yml` → `project-url:`.
 3. **Create a classic personal-access token** with `project` + `repo` scopes:
    https://github.com/settings/tokens/new?scopes=project,repo&description=kno-project-label-sync
 4. **Add it as a repo secret named `PROJECT_PAT`** (Settings → Secrets and variables → Actions).
@@ -65,7 +63,7 @@ The `.github/workflows/labels.yml` workflow runs automatically on push and creat
 
 ## Flow data — checking the repo's health
 
-`dvhthomas/flowmetrics` covers Vacanti-style metrics (cycle time p85, throughput, aging WIP, Monte Carlo forecasts). `dvhthomas/gh-velocity` covers complementary metrics (lead time, quality categorization). Both run from the command line; both eventually back the Flow Coach workflow inside Kno itself (Phase 1 Task 1.9).
+`dvhthomas/flowmetrics` provides Vacanti-style metrics (cycle time p85, throughput, aging WIP, Monte Carlo forecasts) read straight from the GitHub API + the labels set by `project-label-sync`. Two invocation patterns from outside the flowmetrics checkout:
 
 ### Option A — clone once, use forever (recommended for repeated use)
 
@@ -104,20 +102,7 @@ uvx --from git+https://github.com/dvhthomas/flowmetrics flow cycle-time \
 
 Slower first time (downloads + builds in the cache); fast on subsequent runs.
 
-### Option C — gh-velocity (broader categories, requires the `gh` extension)
-
-```bash
-gh extension install dvhthomas/gh-velocity
-gh velocity report -R dvhthomas/kno --since 30d -r json
-```
-
-gh-velocity reads `.gh-velocity.yml` (in this repo root). For cycle time + WIP the tool needs `GH_VELOCITY_TOKEN` set to a classic PAT with `project` scope — set it in your shell (`~/.zshrc` or similar):
-
-```bash
-export GH_VELOCITY_TOKEN=ghp_yourClassicPATWithProjectScope
-```
-
-### Option D — Flow Coach (once Phase 1 ships)
+### Option C — Flow Coach (once Phase 1 ships)
 
 ```bash
 uv run kno serve
@@ -125,6 +110,8 @@ uv run kno serve
 ```
 
 Same data, conversational. Available after Phase 1 Task 1.9 (flowmetrics MCP server).
+
+Both flowmetrics paths use the `GH_TOKEN` env var that `gh auth login` sets up — no additional credential needed.
 
 ---
 
@@ -154,9 +141,7 @@ gh pr view 47
 
 ## Conventional commit prefixes
 
-Match the title-based gh-velocity matchers in `.gh-velocity.yml`:
-
-| Prefix | gh-velocity category | When |
+| Prefix | Category | When |
 |---|---|---|
 | `feat:` | feature | New user-visible behavior |
 | `fix:` | bug | Bug fix |
