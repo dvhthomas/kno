@@ -223,3 +223,51 @@ class TestValidateBranchName:
         failures = pr_validate.validate_branch_name(branch)
         assert len(failures) == 1
         assert branch in failures[0]
+
+
+class TestFindClosesRef:
+    """`find_closes_ref(body)` -> int|None — the first issue number cited."""
+
+    @pytest.mark.parametrize(
+        "body,expected",
+        [
+            ("Closes #11", 11),
+            ("fixes #47", 47),
+            ("Resolves #999", 999),
+            ("Closes #11 and Fixes #12", 11),  # first wins
+            ("no reference here", None),
+            ("", None),
+        ],
+    )
+    def test_cases(self, pr_validate, body, expected):
+        assert pr_validate.find_closes_ref(body) == expected
+
+
+class TestValidateIssueLabels:
+    """`validate_issue_labels(labels, issue_num)` returns list of failures."""
+
+    def test_has_type_and_area(self, pr_validate):
+        assert pr_validate.validate_issue_labels(
+            ["enhancement", "area:web"], 11
+        ) == []
+
+    def test_missing_type(self, pr_validate):
+        failures = pr_validate.validate_issue_labels(["area:web"], 11)
+        assert len(failures) == 1
+        assert "type label" in failures[0]
+        assert "#11" in failures[0]
+
+    def test_missing_area(self, pr_validate):
+        failures = pr_validate.validate_issue_labels(["enhancement"], 11)
+        assert len(failures) == 1
+        assert "area" in failures[0].lower()
+
+    def test_missing_both(self, pr_validate):
+        failures = pr_validate.validate_issue_labels([], 11)
+        assert len(failures) == 2
+
+    @pytest.mark.parametrize(
+        "type_label", ["enhancement", "bug", "documentation", "chore"]
+    )
+    def test_all_four_type_labels_accepted(self, pr_validate, type_label):
+        assert pr_validate.validate_issue_labels([type_label, "area:web"], 11) == []
