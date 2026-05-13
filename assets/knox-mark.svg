@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"
+     class="knox" data-state="alert"
+     role="img" aria-label="Knox the Fox — Kno agent mascot">
+  <title>Knox the Fox</title>
+  <defs>
+    <style><![CDATA[
+      /* Knox is always monochrome: one ink colour, one fur fill.
+         Defaults live in the var() fallbacks so an outer theme can override. */
+      .knox .fur   { fill: var(--knox-fur, #fafaf7); stroke: var(--knox-ink, #1a1a1a);
+                     stroke-width: var(--knox-stroke-w, 4);
+                     stroke-linejoin: round; stroke-linecap: round; }
+      .knox .mark  { fill: none; stroke: var(--knox-ink, #1a1a1a);
+                     stroke-width: var(--knox-mark-w, 2.2);
+                     stroke-linecap: round; stroke-linejoin: round; }
+      .knox .nose  { fill: var(--knox-ink, #1a1a1a); stroke: var(--knox-ink, #1a1a1a);
+                     stroke-width: 2; stroke-linejoin: round; }
+      .knox .eye   { fill: none; stroke: var(--knox-ink, #1a1a1a);
+                     stroke-width: 3.5; stroke-linecap: round;
+                     stroke-linejoin: round; }
+      .knox .iris  { fill: var(--knox-fur, #fafaf7); stroke: var(--knox-ink, #1a1a1a);
+                     stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+      .knox .pupil { fill: var(--knox-ink, #1a1a1a); stroke: none; }
+
+      .knox [data-eyes] { display: none; }
+      .knox[data-state="alert"]    [data-eyes="alert"]    { display: inline; }
+      .knox[data-state="waiting"]  [data-eyes="waiting"]  { display: inline; }
+      .knox[data-state="sleep"]    [data-eyes="sleep"]    { display: inline; }
+      .knox[data-state="think"]    [data-eyes="think"]    { display: inline; }
+      .knox[data-state="surprise"] [data-eyes="surprise"] { display: inline; }
+    ]]></style>
+  </defs>
+
+  <!-- head silhouette (cheek/snout corners very subtly chamfered) -->
+  <path class="fur" d="M 50 35 L 75 80 L 88 78 Q 100 88 112 78 L 125 80 L 150 35 L 164 92 Q 165 95 164 98 L 159 122 Q 158 125 156 127 L 142 143 Q 140 145 138 147 L 124 160 Q 122 162 120 164 L 112 175 Q 100 184 88 175 L 80 164 Q 78 162 76 160 L 62 147 Q 60 145 58 143 L 44 127 Q 42 125 41 122 L 36 98 Q 35 95 36 92 Z" />
+
+  <!-- cheek whiskers: below the eye line, radiating out past the silhouette -->
+  <g class="mark">
+    <line x1="54" y1="131" x2="40"  y2="129" />
+    <line x1="60" y1="139" x2="46"  y2="138" />
+    <line x1="68" y1="147" x2="54"  y2="149" />
+    <line x1="146" y1="131" x2="160" y2="129" />
+    <line x1="140" y1="139" x2="154" y2="138" />
+    <line x1="132" y1="147" x2="146" y2="149" />
+  </g>
+
+  <!-- nose: extends down so its bottom edge IS the chin curve — no gap between nose and face tip -->
+  <path class="nose" d="M 94 166 C 94 164 96 164 100 164 C 104 164 106 164 106 166 C 109 171 111 174 112 175 Q 100 184 88 175 C 89 174 91 171 94 166 Z" />
+
+  <!-- ===== eye states (toggle via data-state on root) ===== -->
+
+  <!-- alert (default): raised brows + small pupils glancing up-left, attentive -->
+  <g data-eyes="alert">
+    <path class="mark" d="M 73 107 q 10 -5 19 -1" />
+    <path class="mark" d="M 108 106 q 9 -4 19 1" />
+    <circle class="pupil" cx="82" cy="118" r="2.4" />
+    <circle class="pupil" cx="115" cy="118" r="2.4" />
+  </g>
+
+  <!-- waiting: closed upward arches, content/squinting -->
+  <g data-eyes="waiting">
+    <path class="eye" d="M 75 126 C 80 116 88 117 93 124" />
+    <path class="eye" d="M 107 124 C 112 117 119 116 125 126" />
+  </g>
+
+  <!-- sleep: closed downward crescents -->
+  <g data-eyes="sleep">
+    <path class="eye" d="M 75 114 C 80 124 88 123 93 116" />
+    <path class="eye" d="M 107 116 C 112 123 119 124 125 114" />
+  </g>
+
+  <!-- think: two chevrons '> <' with apexes pointing inward, eyes squeezed shut in concentration -->
+  <g data-eyes="think">
+    <path class="eye" d="M 75 112 L 91 118 L 76 124" />
+    <path class="eye" d="M 125 113 L 109 119 L 124 123" />
+  </g>
+
+  <!-- surprise: wide hand-drawn eyes with dot pupils -->
+  <g data-eyes="surprise">
+    <path class="iris" d="M 84 110 Q 90 111 91 116 Q 92 121 88 124 Q 84 126 80 124 Q 76 121 77 116 Q 78 111 84 110 Z" />
+    <path class="iris" d="M 117 111 Q 122 111 124 116 Q 125 122 122 124 Q 117 127 113 124 Q 109 122 110 116 Q 112 110 117 111 Z" />
+    <ellipse class="pupil" cx="83" cy="118" rx="2.3" ry="2.6" />
+    <ellipse class="pupil" cx="116" cy="119" rx="2.4" ry="2.3" />
+  </g>
+</svg>

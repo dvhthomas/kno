@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Kno — design system</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --hue: 290;
+
+    --p-50:  hsla(var(--hue), 32%, 96%, 1);
+    --p-100: hsla(var(--hue), 34%, 88%, 1);
+    --p-200: hsla(var(--hue), 38%, 78%, 1);
+    --p-400: hsla(var(--hue), 42%, 58%, 1);
+    --p-500: hsla(var(--hue), 46%, 48%, 1);
+    --p-700: hsla(var(--hue), 52%, 30%, 1);
+    --p-900: hsla(var(--hue), 58%, 14%, 1);
+
+    --s-100: hsla(calc(var(--hue) + 60), 36%, 90%, 1);
+    --s-500: hsla(calc(var(--hue) + 60), 44%, 56%, 1);
+    --s-700: hsla(calc(var(--hue) + 60), 50%, 34%, 1);
+
+    --t-100: hsla(calc(var(--hue) - 60), 30%, 90%, 1);
+    --t-500: hsla(calc(var(--hue) - 60), 32%, 54%, 1);
+    --t-700: hsla(calc(var(--hue) - 60), 38%, 32%, 1);
+
+    --bg:      hsla(var(--hue), 24%, 97%, 1);
+    --surface: hsla(var(--hue), 16%, 94%, 1);
+    --border:  hsla(var(--hue), 18%, 84%, 1);
+    --fg:      hsla(var(--hue), 28%, 13%, 1);
+    --muted:   hsla(var(--hue), 12%, 46%, 1);
+
+    /* pure tones — tokenised so they can be tweaked later (e.g. warm off-white) */
+    --white: #ffffff;
+    --black: #111111;
+
+    --body-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --head-font: "Rubik", sans-serif;
+    --mono-font: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font: 400 16px/1.6 var(--body-font);
+    background: var(--bg);
+    color: var(--fg);
+    padding: 56px 32px 96px;
+    max-width: 1120px;
+    margin: 0 auto;
+  }
+
+  h1, h2, h3 { font-family: var(--head-font); font-weight: 600; }
+  h1 { font-size: 36px; line-height: 1.15; letter-spacing: -0.02em;
+       margin: 0 0 6px; color: var(--fg); }
+  h2 { font-size: 13px; line-height: 1.4; letter-spacing: 0.1em;
+       text-transform: uppercase; color: var(--muted);
+       margin: 64px 0 20px;
+       border-top: 1px solid var(--border); padding-top: 28px; }
+  h3 { font-size: 17px; line-height: 1.3; letter-spacing: -0.005em;
+       margin: 32px 0 12px; color: var(--fg); }
+
+  p { margin: 0 0 12px; }
+  .sub { color: var(--muted); font-size: 17px; line-height: 1.55; margin-bottom: 0; }
+  a { color: var(--p-500); }
+  a:hover { color: var(--p-700); }
+  code { font-family: var(--mono-font); font-size: 13.5px;
+         background: var(--surface); padding: 2px 6px; border-radius: 4px; }
+  em { color: var(--fg); font-style: italic; }
+
+  /* ----- swatches ----- */
+  .palette { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .swatch  {
+    width: 156px; height: 92px; border-radius: 8px;
+    border: 1px solid var(--border);
+    padding: 10px 12px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    font: 11px/1.4 var(--mono-font);
+  }
+  .swatch .name { font-weight: 600; font-size: 12px; }
+  .swatch .val  { opacity: 0.8; }
+  .text-light { color: var(--p-50); }
+  .text-dark  { color: var(--p-900); }
+  .text-sec-dark { color: var(--s-100); }
+  .text-sec-light { color: var(--s-700); }
+  .text-ter-dark  { color: var(--t-100); }
+  .text-ter-light { color: var(--t-700); }
+  .text-bw { color: #111; }
+
+  /* ----- tables ----- */
+  table { width: 100%; max-width: 920px; border-collapse: collapse;
+          margin: 0 0 12px; font-size: 14.5px; }
+  th, td { padding: 11px 14px; text-align: left; vertical-align: top;
+           border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font: 600 11.5px/1.4 var(--body-font);
+       text-transform: uppercase; letter-spacing: 0.08em; padding-bottom: 8px; }
+  td code { font-size: 12.5px; white-space: nowrap; }
+  td.token { font-family: var(--mono-font); font-size: 13px; color: var(--p-700); }
+  td .swatch-inline { display: inline-block; width: 12px; height: 12px;
+                      border-radius: 3px; vertical-align: -2px; margin-right: 6px;
+                      border: 1px solid var(--border); }
+
+  /* ----- type specimens ----- */
+  .type-specimens > * + * { margin-top: 14px; }
+  .specimen { display: flex; gap: 24px; align-items: baseline;
+              padding: 14px 0; border-bottom: 1px solid var(--border); }
+  .specimen .meta { font: 11px/1.4 var(--mono-font); color: var(--muted);
+                    min-width: 220px; }
+
+  /* ----- knox CSS (applies to every inlined .knox) ----- */
+  .knox .fur   { fill: var(--knox-fur, var(--white)); stroke: var(--knox-ink, var(--black));
+                 stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
+  .knox .mark  { fill: none; stroke: var(--knox-ink, var(--black));
+                 stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  .knox .nose  { fill: var(--knox-ink, var(--black)); stroke: var(--knox-ink, var(--black));
+                 stroke-width: 2; stroke-linejoin: round; }
+  .knox .eye   { fill: none; stroke: var(--knox-ink, var(--black));
+                 stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
+  .knox .iris  { fill: var(--knox-fur, var(--white)); stroke: var(--knox-ink, var(--black));
+                 stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+  .knox .pupil { fill: var(--knox-ink, var(--black)); stroke: none; }
+  .knox [data-eyes] { display: none; }
+  .knox[data-state="alert"]    [data-eyes="alert"]    { display: inline; }
+  .knox[data-state="waiting"]  [data-eyes="waiting"]  { display: inline; }
+  .knox[data-state="sleep"]    [data-eyes="sleep"]    { display: inline; }
+  .knox[data-state="think"]    [data-eyes="think"]    { display: inline; }
+  .knox[data-state="surprise"] [data-eyes="surprise"] { display: inline; }
+
+  /* surface backgrounds */
+  .surf-white { background: var(--white);  color: var(--black);  border: 1px solid var(--border); }
+  .surf-p50   { background: var(--p-50);   color: var(--p-900); }
+  .surf-p200  { background: var(--p-200);  color: var(--p-900); }
+  .surf-p500  { background: var(--p-500);  color: var(--p-50); }
+  .surf-p900  { background: var(--p-900);  color: var(--p-50); }
+  .surf-s100  { background: var(--s-100);  color: var(--s-700); }
+  .surf-t100  { background: var(--t-100);  color: var(--t-700); }
+
+  /* knox combos — explicit fur + ink pairs */
+  .knox-classic { --knox-fur: var(--white);     --knox-ink: var(--p-900); }
+  .knox-inverse { --knox-fur: var(--p-50); --knox-ink: var(--p-700); }
+  .knox-mono    { --knox-fur: var(--white);     --knox-ink: var(--black); }
+  .knox-berry   { --knox-fur: var(--white);     --knox-ink: var(--s-700); }
+  .knox-slate   { --knox-fur: var(--white);     --knox-ink: var(--t-700); }
+
+  /* card grids */
+  .grid { display: grid; gap: 14px;
+          grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+  .card {
+    border-radius: 14px; padding: 22px;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+  }
+  .card svg    { width: 100%; max-width: 150px; height: auto; display: block; }
+  .card .label { font: 11px/1.4 var(--mono-font); opacity: 0.85; text-align: center; }
+  .card .label strong { display: block; font-weight: 600; opacity: 1;
+                        font-size: 12px; margin-bottom: 4px; }
+
+  /* eye state cards (always classic Knox on p-50 so the eyes are what changes) */
+  .state-card {
+    background: var(--p-50); border: 1px solid var(--border);
+    color: var(--p-900);
+    --knox-fur: var(--white); --knox-ink: var(--p-900);
+  }
+  .state-card svg { width: 110px; height: 110px; }
+  .state-card .label { color: var(--p-900); opacity: 1; }
+  .state-card .label .when { display: block; opacity: 0.7; font-size: 11px;
+                             font-weight: 400; margin-top: 4px;
+                             font-family: var(--body-font); }
+</style>
+</head>
+<body>
+
+<h1>Kno — design system</h1>
+<p class="sub">
+  Color, typography, and logo. Authoritative reference for any UI built in the Kno surface.
+</p>
+
+<!-- ============================================================ COLOR -->
+<h2>Color</h2>
+
+<h3>Primary scale &mdash; plum-violet, hue 290°</h3>
+<div class="palette">
+  <div class="swatch text-dark"  style="background: var(--p-50)" ><span class="name">--p-50</span> <span class="val">hsla(290, 32%, 96%)</span></div>
+  <div class="swatch text-dark"  style="background: var(--p-100)"><span class="name">--p-100</span><span class="val">hsla(290, 34%, 88%)</span></div>
+  <div class="swatch text-dark"  style="background: var(--p-200)"><span class="name">--p-200</span><span class="val">hsla(290, 38%, 78%)</span></div>
+  <div class="swatch text-light" style="background: var(--p-400)"><span class="name">--p-400</span><span class="val">hsla(290, 42%, 58%)</span></div>
+  <div class="swatch text-light" style="background: var(--p-500)"><span class="name">--p-500</span><span class="val">hsla(290, 46%, 48%)</span></div>
+  <div class="swatch text-light" style="background: var(--p-700)"><span class="name">--p-700</span><span class="val">hsla(290, 52%, 30%)</span></div>
+  <div class="swatch text-light" style="background: var(--p-900)"><span class="name">--p-900</span><span class="val">hsla(290, 58%, 14%)</span></div>
+</div>
+
+<h3>Secondary &mdash; warm berry, hue 350°</h3>
+<div class="palette">
+  <div class="swatch text-sec-light" style="background: var(--s-100)"><span class="name">--s-100</span><span class="val">hsla(350, 36%, 90%)</span></div>
+  <div class="swatch text-sec-dark"  style="background: var(--s-500)"><span class="name">--s-500</span><span class="val">hsla(350, 44%, 56%)</span></div>
+  <div class="swatch text-sec-dark"  style="background: var(--s-700)"><span class="name">--s-700</span><span class="val">hsla(350, 50%, 34%)</span></div>
+</div>
+
+<h3>Tertiary &mdash; cool slate-blue, hue 230°</h3>
+<div class="palette">
+  <div class="swatch text-ter-light" style="background: var(--t-100)"><span class="name">--t-100</span><span class="val">hsla(230, 30%, 90%)</span></div>
+  <div class="swatch text-ter-dark"  style="background: var(--t-500)"><span class="name">--t-500</span><span class="val">hsla(230, 32%, 54%)</span></div>
+  <div class="swatch text-ter-dark"  style="background: var(--t-700)"><span class="name">--t-700</span><span class="val">hsla(230, 38%, 32%)</span></div>
+</div>
+
+<h3>Neutrals &amp; text</h3>
+<div class="palette">
+  <div class="swatch text-dark"  style="background: var(--bg)"     ><span class="name">--bg</span>      <span class="val">hsla(290, 24%, 97%)</span></div>
+  <div class="swatch text-dark"  style="background: var(--surface)"><span class="name">--surface</span> <span class="val">hsla(290, 16%, 94%)</span></div>
+  <div class="swatch text-dark"  style="background: var(--border)" ><span class="name">--border</span>  <span class="val">hsla(290, 18%, 84%)</span></div>
+  <div class="swatch text-light" style="background: var(--fg)"     ><span class="name">--fg</span>      <span class="val">hsla(290, 28%, 13%)</span></div>
+  <div class="swatch text-light" style="background: var(--muted)"  ><span class="name">--muted</span>   <span class="val">hsla(290, 12%, 46%)</span></div>
+</div>
+
+<h3>Color usage</h3>
+<table>
+  <thead>
+    <tr><th>Element</th><th>Token(s)</th><th>Rule</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Page background</td><td class="token">--bg</td><td>Default body background.</td></tr>
+    <tr><td>Card / elevated surface</td><td class="token">--surface</td><td>One step darker than --bg. No border needed.</td></tr>
+    <tr><td>Border / divider</td><td class="token">--border</td><td>1px line on bg or surface.</td></tr>
+    <tr><td>Heading text (h1, h3)</td><td class="token">--fg</td><td>Always.</td></tr>
+    <tr><td>Section eyebrow (h2)</td><td class="token">--muted</td><td>Uppercase, letter-spacing 0.10em.</td></tr>
+    <tr><td>Body text</td><td class="token">--fg</td><td>Always.</td></tr>
+    <tr><td>Muted / caption / helper text</td><td class="token">--muted</td><td>Always.</td></tr>
+    <tr><td>Link (default)</td><td class="token">--p-500</td><td>Always.</td></tr>
+    <tr><td>Link (hover)</td><td class="token">--p-700</td><td>Always.</td></tr>
+    <tr><td>Primary button background</td><td class="token">--p-500</td><td>Hover: --p-700.</td></tr>
+    <tr><td>Primary button text</td><td class="token">--p-50</td><td>Always.</td></tr>
+    <tr><td>Inline code background</td><td class="token">--surface</td><td>2px 6px padding, 4px radius.</td></tr>
+    <tr><td>Code block background</td><td class="token">--p-900</td><td>Always.</td></tr>
+    <tr><td>Code block text</td><td class="token">--p-100</td><td>Always.</td></tr>
+    <tr><td>Pill / badge (primary)</td><td class="token">--p-100 bg, --p-700 text</td><td>Always.</td></tr>
+    <tr><td>Pill / badge (warm accent)</td><td class="token">--s-100 bg, --s-700 text</td><td>Use for success, "yes" states.</td></tr>
+    <tr><td>Pill / badge (cool accent)</td><td class="token">--t-100 bg, --t-700 text</td><td>Use for info, tags.</td></tr>
+    <tr><td>Strong / inline emphasis</td><td class="token">--p-700</td><td>Color only; weight stays inherited.</td></tr>
+  </tbody>
+</table>
+
+<!-- ============================================================ TYPOGRAPHY -->
+<h2>Typography</h2>
+
+<h3>Stacks</h3>
+<table>
+  <thead><tr><th>Role</th><th>CSS variable</th><th>Stack</th></tr></thead>
+  <tbody>
+    <tr><td>Headings</td><td class="token">--head-font</td><td><code>"Rubik", sans-serif</code> — Google Fonts, weight 600</td></tr>
+    <tr><td>Body</td><td class="token">--body-font</td><td><code>-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif</code></td></tr>
+    <tr><td>Monospace</td><td class="token">--mono-font</td><td><code>ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace</code></td></tr>
+  </tbody>
+</table>
+
+<h3>Type scale</h3>
+<table>
+  <thead><tr><th>Role</th><th>Font</th><th>Size</th><th>Line-height</th><th>Weight</th><th>Tracking</th><th>Color</th></tr></thead>
+  <tbody>
+    <tr><td>H1 — page title</td>  <td>Rubik</td>          <td>36px</td>   <td>1.15</td><td>600</td><td>−0.02em</td>    <td class="token">--fg</td></tr>
+    <tr><td>H2 — section eyebrow</td><td>Rubik (uppercase)</td><td>13px</td><td>1.4</td><td>600</td><td>0.10em</td>     <td class="token">--muted</td></tr>
+    <tr><td>H3 — subsection</td>   <td>Rubik</td>          <td>17px</td>   <td>1.3</td> <td>600</td><td>−0.005em</td>   <td class="token">--fg</td></tr>
+    <tr><td>Body</td>              <td>System sans</td>    <td>16px</td>   <td>1.6</td> <td>400</td><td>0</td>          <td class="token">--fg</td></tr>
+    <tr><td>Lede / intro</td>      <td>System sans</td>    <td>17px</td>   <td>1.55</td><td>400</td><td>0</td>          <td class="token">--muted</td></tr>
+    <tr><td>Caption / muted</td>   <td>System sans</td>    <td>14px</td>   <td>1.5</td> <td>400</td><td>0</td>          <td class="token">--muted</td></tr>
+    <tr><td>Inline code</td>       <td>Monospace</td>      <td>13.5px</td> <td>inherit</td><td>400</td><td>0</td>       <td class="token">--fg</td></tr>
+    <tr><td>Label / chip (mono)</td><td>Monospace</td>     <td>11px</td>   <td>1.4</td> <td>400</td><td>0</td>          <td class="token">--muted</td></tr>
+  </tbody>
+</table>
+
+<h3>Specimens</h3>
+<div class="type-specimens">
+  <div class="specimen">
+    <span class="meta">H1 · Rubik 600 · 36/1.15 · −0.02em</span>
+    <span style="font: 600 36px/1.15 var(--head-font); letter-spacing: -0.02em;">Knowledge agent for the curious</span>
+  </div>
+  <div class="specimen">
+    <span class="meta">H2 · Rubik 600 · 13/1.4 · 0.10em UPPER</span>
+    <span style="font: 600 13px/1.4 var(--head-font); letter-spacing: 0.10em; text-transform: uppercase; color: var(--muted);">Section heading</span>
+  </div>
+  <div class="specimen">
+    <span class="meta">H3 · Rubik 600 · 17/1.3</span>
+    <span style="font: 600 17px/1.3 var(--head-font); letter-spacing: -0.005em;">A clear subsection</span>
+  </div>
+  <div class="specimen">
+    <span class="meta">Body · system · 16/1.6</span>
+    <span style="font: 400 16px/1.6 var(--body-font);">Body text reads at a calm size, sized for long-form prose and dense UI alike.</span>
+  </div>
+  <div class="specimen">
+    <span class="meta">Lede · system · 17/1.55</span>
+    <span style="font: 400 17px/1.55 var(--body-font); color: var(--muted);">Lede paragraphs introduce a section in slightly larger, muted text.</span>
+  </div>
+  <div class="specimen">
+    <span class="meta">Caption · system · 14/1.5</span>
+    <span style="font: 400 14px/1.5 var(--body-font); color: var(--muted);">Captions and helper copy stay quiet.</span>
+  </div>
+  <div class="specimen">
+    <span class="meta">Code · mono · 13.5</span>
+    <code>const knox = useTheme()</code>
+  </div>
+  <div class="specimen">
+    <span class="meta">Label · mono · 11</span>
+    <span style="font: 400 11px/1.4 var(--mono-font); color: var(--muted);">--knox-ink</span>
+  </div>
+</div>
+
+<!-- ============================================================ LOGO -->
+<h2>Logo — Knox the Fox</h2>
+
+<p class="sub">
+  Source: <code>assets/knox-mark.svg</code> · viewBox <code>0 0 200 200</code>.
+  Knox uses exactly two colors: <code>--knox-fur</code> (silhouette fill) and
+  <code>--knox-ink</code> (outline, nose, eyes). Set both as a pair per surface.
+</p>
+
+<h3>Color combos</h3>
+<table>
+  <thead><tr><th>Combo</th><th>--knox-fur</th><th>--knox-ink</th><th>Use on surfaces</th></tr></thead>
+  <tbody>
+    <tr><td><code>.knox-classic</code> <em>(primary mark)</em></td>
+        <td class="token"><span class="swatch-inline" style="background: var(--white)"></span>--white</td>
+        <td class="token"><span class="swatch-inline" style="background: var(--p-900)"></span>--p-900</td>
+        <td>--p-50, --p-100, --p-200, --p-500</td></tr>
+    <tr><td><code>.knox-inverse</code></td>
+        <td class="token"><span class="swatch-inline" style="background: var(--p-50)"></span>--p-50</td>
+        <td class="token"><span class="swatch-inline" style="background: var(--p-700)"></span>--p-700</td>
+        <td>--p-900</td></tr>
+    <tr><td><code>.knox-mono</code></td>
+        <td class="token"><span class="swatch-inline" style="background: var(--white)"></span>--white</td>
+        <td class="token"><span class="swatch-inline" style="background: var(--black)"></span>--black</td>
+        <td>--white, print, monochrome contexts</td></tr>
+    <tr><td><code>.knox-berry</code></td>
+        <td class="token"><span class="swatch-inline" style="background: var(--white)"></span>--white</td>
+        <td class="token"><span class="swatch-inline" style="background: var(--s-700)"></span>--s-700</td>
+        <td>--s-100 (warm-accent contexts)</td></tr>
+    <tr><td><code>.knox-slate</code></td>
+        <td class="token"><span class="swatch-inline" style="background: var(--white)"></span>--white</td>
+        <td class="token"><span class="swatch-inline" style="background: var(--t-700)"></span>--t-700</td>
+        <td>--t-100 (cool-accent contexts)</td></tr>
+  </tbody>
+</table>
+
+<h3>Combos in context</h3>
+<div class="grid">
+
+  <div class="card surf-p50 knox-classic">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" class="knox" data-state="alert" role="img" aria-label="Knox classic on p-50">
+      <path class="fur" d="M 50 35 L 75 80 L 88 78 Q 100 88 112 78 L 125 80 L 150 35 L 164 92 Q 165 95 164 98 L 159 122 Q 158 125 156 127 L 142 143 Q 140 145 138 147 L 124 160 Q 122 162 120 164 L 112 175 Q 100 184 88 175 L 80 164 Q 78 162 76 160 L 62 147 Q 60 145 58 143 L 44 127 Q 42 125 41 122 L 36 98 Q 35 95 36 92 Z" />
+      <g class="mark"><line x1="54" y1="131" x2="40" y2="129"/><line x1="60" y1="139" x2="46" y2="138"/><line x1="68" y1="147" x2="54" y2="149"/><line x1="146" y1="131" x2="160" y2="129"/><line x1="140" y1="139" x2="154" y2="138"/><line x1="132" y1="147" x2="146" y2="149"/></g>
+      <path class="nose" d="M 94 166 C 94 164 96 164 100 164 C 104 164 106 164 106 166 C 109 171 111 174 112 175 Q 100 184 88 175 C 89 174 91 171 94 166 Z" />
+      <g data-eyes="alert"><path class="mark" d="M 73 107 q 10 -5 19 -1"/><path class="mark" d="M 108 106 q 9 -4 19 1"/><circle class="pupil" cx="82" cy="118" r="2.4"/><circle class="pupil" cx="115" cy="118" r="2.4"/></g>
+    </svg>
+    <span class="label"><strong>classic</strong>on --p-50</span>
+  </div>
+
+  <div class="card surf-p200 knox-classic">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" class="knox" data-state="alert" role="img" aria-label="Knox classic on p-200">
+      <path class="fur" d="M 50 35 L 75 80 L 88 78 Q 100 88 112 78 L 125 80 L 150 35 L 164 92 Q 165 95 164 98 L 159 122 Q 158 125 156 127 L 142 143 Q 140 145 138 147 L 124 160 Q 122 162 120 164 L 112 175 Q 100 184 88 175 L 80 164 Q 78 162 76 160 L 62 147 Q 60 145 58 143 L 44 127 Q 42 125 41 122 L 36 98 Q 35 95 36 92 Z" />
+      <g class="mark"><line x1="54" y1="131" x2="40" y2="129"/><line x1="60" y1="139" x2="46" y2="138"/><line x1="68" y1="147" x2="54" y2="149"/><line x1="146" y1="131" x2="160" y2="129"/><line x1="140" y1="139" x2="154" y2="138"/><line x1="132" y1="147" x2="146" y2="149"/></g>
+      <path class="nose" d="M 94 166 C 94 164 96 164 100 164 C 104 164 106 164 106 166 C 109 171 111 174 112 175 Q 100 184 88 175 C 89 174 91 171 94 166 Z" />
+      <g data-eyes="alert"><path class="mark" d="M 73 107 q 10 -5 19 -1"/><path class="mark" d="M 108 106 q 9 -4 19 1"/><circle class="pupil" cx="82" cy="118" r="2.4"/><circle class="pupil" cx="115" cy="118" r="2.4"/></g>
+    </svg>
+    <span class="label"><strong>classic</strong>on --p-200</span>
+  </div>
+
+  <div class="card surf-p500 knox-classic">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" class="knox" data-state="alert" role="img" aria-label="Knox classic on p-500">
+      <path class="fur" d="M 50 35 L 75 80 L 88 78 Q 100 88 112 78 L 125 80 L 150 35 L 164 92 Q 165 95 164 98 L 159 122 Q 158 125 156 127 L 142 143 Q 140 145 138 147 L 124 160 Q 122 162 120 164 L 112 175 Q 100 184 88 175 L 80 164 Q 78 162 76 160 L 62 147 Q 60 145 58 143 L 44 127 Q 42 125 41 122 L 36 98 Q 35 95 36 92 Z" />
+      <g class="mark"><line x1="54" y1="131" x2="40" y2="129"/><line x1="60" y1="139" x2="46" y2="138"/><line x1="68" y1="147" x2="54" y2="149"/><line x1="146" y1="131" x2="160" y2="129"/><line x1="140" y1="139" x2="154" y2="138"/><line x1="132" y1="147" x2="146" y2="149"/></g>
+      <path class="nose" d="M 94 166 C 94 164 96 164 100 164 C 104 164 106 164 106 166 C 109 171 111 174 112 175 Q 100 184 88 175 C 89 174 91 171 94 166 Z" />
+      <g data-eyes="alert"><path class="mark" d="M 73 107 q 10 -5 19 -1"/><path class="mark" d="M 108 106 q 9 -4 19 1"/><circle class="pupil" cx="82" cy="118" r="2.4"/><circle class="pupil" cx="115" cy="118" r="2.4"/></g>
+    </svg>
+    <span class="label"><strong>classic</strong>on --p-500</span>
+  </div>
+
+  <div class="card surf-p900 knox-inverse">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" class="knox" data-state="alert" role="img" aria-label="Knox inverse on p-900">
+      <path class="fur" d="M 50 35 L 75 80 L 88 78 Q 100 88 112 78 L 125 80 L 150 35 L 164 92 Q 165 95 164 98 L 159 122 Q 158 125 156 127 L 142 143 Q 140 145 138 147 L 124 160 Q 122 162 120 164 L 112 175 Q 100 184 88 175 L 80 164 Q 78 162 76 160 L 62 147 Q 60 145 58 143 L 44 127 Q 42 125 41 122 L 36 98 Q 35 95 36 92 Z" />
+      <g class="mark"><line x1="54" y1="131" x2="40" y2="129"/><line x1="60" y1="139" x2="46" y2="138"/><line x1="68" y1="147" x2="54" y2="149"/><line x1="146" y1="131" x2="160" y2="129"/><line x1="140" y1="139" x2="154" y2="138"/><line x1="132" y1="147" x2="146" y2="149"/></g>
+      <path class="nose" d="M 94 166 C 94 164 96 164 100 164 C 104 164 106 164 106 166 C 109 171 111 174 112 175 Q 100 184 88 175 C 89 174 91 171 94 166 Z" />
+      <g data-eyes="alert"><path class="mark" d="M 73 107 q 10 -5 19 -1"/><path class="mark" d="M 108 106 q 9 -4 19 1"/><circle class="pupil" cx="82" cy="118" r="2.4"/><circle class="pupil" cx="115" cy="118" r="2.4"/></g>
+    </svg>
+    <span class="label"><strong>inverse</strong>on --p-900</span>
+  </div>
+
+  <div class="card surf-white knox-mono">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" class="knox" data-state="alert" role="img" aria-label="Knox mono on white">
+      <path class="fur" d="M 50 35 L 75 80 L 88 78 Q 100 88 112 78 L 125 80 L 150 35 L 164 92 Q 165 95 164 98 L 159 122 Q 158 125 156 127 L 142 143 Q 140 145 138 147 L 124 160 Q 122 162 120 164 L 112 175 Q 100 184 88 175 L 80 164 Q 78 162 76 160 L 62 147 Q 60 145 58 143 L 44 127 Q 42 125 41 122 L 36 98 Q 35 95 36 92 Z" />
+      <g class="mark"><line x1="54" y1="131" x2="40" y2="129"/><line x1="60" y1="139" x2="46" y2="138"/><line x1="68" y1="147" x2="54" y2="149"/><line x1="146" y1="131" x2="160" y2="129"/><line x1="140" y1="139" x2="154" y2="138"/><line x1="132" y1="147" x2="146" y2="149"/></g>
+      <path class="nose" d="M 94 166 C 94 164 96 164 100 164 C 104 164 106 164 106 166 C 109 171 111 174 112 175 Q 100 184 88 175 C 89 174 91 171 94 166 Z" />
+      <g data-eyes="alert"><path class="mark" d="M 73 107 q 10 -5 19 -1"/><path class="mark" d="M 108 106 q 9 -4 19 1"/><circle class="pupil" cx="82" cy="118" r="2.4"/><circle class="pupil" cx="115" cy="118" r="2.4"/></g>
+    </svg>
+    <span class="label"><strong>mono</strong>on --white</span>
+  </div>
+
+  <div class="card surf-s100 knox-berry">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" class="knox" data-state="alert" role="img" aria-label="Knox berry on s-100">
+      <path class="fur" d="M 50 35 L 75 80 L 88 78 Q 100 88 112 78 L 125 80 L 150 35 L 164 92 Q 165 95 164 98 L 159 122 Q 158 125 156 127 L 142 143 Q 140 145 138 147 L 124 160 Q 122 162 120 164 L 112 175 Q 100 184 88 175 L 80 164 Q 78 162 76 160 L 62 147 Q 60 145 58 143 L 44 127 Q 42 125 41 122 L 36 98 Q 35 95 36 92 Z" />
+      <g class="mark"><line x1="54" y1="131" x2="40" y2="129"/><line x1="60" y1="139" x2="46" y2="138"/><line x1="68" y1="147" x2="54" y2="149"/><line x1="146" y1="131" x2="160" y2="129"/><line x1="140" y1="139" x2="154" y2="138"/><line x1="132" y1="147" x2="146" y2="149"/></g>
+      <path class="nose" d="M 94 166 C 94 164 96 164 100 164 C 104 164 106 164 106 166 C 109 171 111 174 112 175 Q 100 184 88 175 C 89 174 91 171 94 166 Z" />
+      <g data-eyes="alert"><path class="mark" d="M 73 107 q 10 -5 19 -1"/><path class="mark" d="M 108 106 q 9 -4 19 1"/><circle class="pupil" cx="82" cy="118" r="2.4"/><circle class="pupil" cx="115" cy="118" r="2.4"/></g>
+    </svg>
+    <span class="label"><strong>berry</strong>on --s-100</span>
+  </div>
+
+  <div class="card surf-t100 knox-slate">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" class="knox" data-state="alert" role="img" aria-label="Knox slate on t-100">
+      <path class="fur" d="M 50 35 L 75 80 L 88 78 Q 100 88 112 78 L 125 80 L 150 35 L 164 92 Q 165 95 164 98 L 159 122 Q 158 125 156 127 L 142 143 Q 140 145 138 147 L 124 160 Q 122 162 120 164 L 112 175 Q 100 184 88 175 L 80 164 Q 78 162 76 160 L 62 147 Q 60 145 58 143 L 44 127 Q 42 125 41 122 L 36 98 Q 35 95 36 92 Z" />
+      <g class="mark"><line x1="54" y1="131" x2="40" y2="129"/><line x1="60" y1="139" x2="46" y2="138"/><line x1="68" y1="147" x2="54" y2="149"/><line x1="146" y1="131" x2="160" y2="129"/><line x1="140" y1="139" x2="154" y2="138"/><line x1="132" y1="147" x2="146" y2="149"/></g>
+      <path class="nose" d="M 94 166 C 94 164 96 164 100 164 C 104 164 106 164 106 166 C 109 171 111 174 112 175 Q 100 184 88 175 C 89 174 91 171 94 166 Z" />
+      <g data-eyes="alert"><path class="mark" d="M 73 107 q 10 -5 19 -1"/><path class="mark" d="M 108 106 q 9 -4 19 1"/><circle class="pupil" cx="82" cy="118" r="2.4"/><circle class="pupil" cx="115" cy="118" r="2.4"/></g>
+    </svg>
+    <span class="label"><strong>slate</strong>on --t-100</span>
+  </div>
+
+</div>
+
+<h3>Eye states</h3>
+<p>
+  Toggle by setting <code>data-state</code> on the SVG root.
+  Default if unset: <code>alert</code>.
+</p>
+<table>
+  <thead><tr><th>State</th><th>Meaning</th><th>Use when…</th></tr></thead>
+  <tbody>
+    <tr><td><code>alert</code> <em>(default)</em></td><td>Attentive, eyes open, glancing up.</td><td>Idle and ready for input.</td></tr>
+    <tr><td><code>waiting</code></td>                <td>Eyes closed in a content upward arch.</td><td>Peaceful idle. Long pauses inside a single user turn.</td></tr>
+    <tr><td><code>sleep</code></td>                  <td>Eyes closed in a downward crescent.</td><td>Long inactivity / low-power state. Agent paused.</td></tr>
+    <tr><td><code>think</code></td>                  <td>Eyes squeezed shut, chevrons pointing inward.</td><td>Active processing. Knox is working on a response.</td></tr>
+    <tr><td><code>surprise</code></td>               <td>Wide hand-drawn eyes, small pupils.</td><td>Error, unexpected event, attention required.</td></tr>
+  </tbody>
+</table>
+
+<div class="grid">
+  <div class="card state-card">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" class="knox" data-state="alert" role="img" aria-label="Knox alert">
+      <path class="fur" d="M 50 35 L 75 80 L 88 78 Q 100 88 112 78 L 125 80 L 150 35 L 164 92 Q 165 95 164 98 L 159 122 Q 158 125 156 127 L 142 143 Q 140 145 138 147 L 124 160 Q 122 162 120 164 L 112 175 Q 100 184 88 175 L 80 164 Q 78 162 76 160 L 62 147 Q 60 145 58 143 L 44 127 Q 42 125 41 122 L 36 98 Q 35 95 36 92 Z" />
+      <g class="mark"><line x1="54" y1="131" x2="40" y2="129"/><line x1="60" y1="139" x2="46" y2="138"/><line x1="68" y1="147" x2="54" y2="149"/><line x1="146" y1="131" x2="160" y2="129"/><line x1="140" y1="139" x2="154" y2="138"/><line x1="132" y1="147" x2="146" y2="149"/></g>
+      <path class="nose" d="M 94 166 C 94 164 96 164 100 164 C 104 164 106 164 106 166 C 109 171 111 174 112 175 Q 100 184 88 175 C 89 174 91 171 94 166 Z" />
+      <g data-eyes="alert"><path class="mark" d="M 73 107 q 10 -5 19 -1"/><path class="mark" d="M 108 106 q 9 -4 19 1"/><circle class="pupil" cx="82" cy="118" r="2.4"/><circle class="pupil" cx="115" cy="118" r="2.4"/></g>
+    </svg>
+    <span class="label"><strong>alert</strong><span class="when">default — idle, ready</span></span>
+  </div>
+
+  <div class="card state-card">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" class="knox" data-state="waiting" role="img" aria-label="Knox waiting">
+      <path class="fur" d="M 50 35 L 75 80 L 88 78 Q 100 88 112 78 L 125 80 L 150 35 L 164 92 Q 165 95 164 98 L 159 122 Q 158 125 156 127 L 142 143 Q 140 145 138 147 L 124 160 Q 122 162 120 164 L 112 175 Q 100 184 88 175 L 80 164 Q 78 162 76 160 L 62 147 Q 60 145 58 143 L 44 127 Q 42 125 41 122 L 36 98 Q 35 95 36 92 Z" />
+      <g class="mark"><line x1="54" y1="131" x2="40" y2="129"/><line x1="60" y1="139" x2="46" y2="138"/><line x1="68" y1="147" x2="54" y2="149"/><line x1="146" y1="131" x2="160" y2="129"/><line x1="140" y1="139" x2="154" y2="138"/><line x1="132" y1="147" x2="146" y2="149"/></g>
+      <path class="nose" d="M 94 166 C 94 164 96 164 100 164 C 104 164 106 164 106 166 C 109 171 111 174 112 175 Q 100 184 88 175 C 89 174 91 171 94 166 Z" />
+      <g data-eyes="waiting"><path class="eye" d="M 75 126 C 80 116 88 117 93 124"/><path class="eye" d="M 107 124 C 112 117 119 116 125 126"/></g>
+    </svg>
+    <span class="label"><strong>waiting</strong><span class="when">content pause</span></span>
+  </div>
+
+  <div class="card state-card">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" class="knox" data-state="sleep" role="img" aria-label="Knox sleep">
+      <path class="fur" d="M 50 35 L 75 80 L 88 78 Q 100 88 112 78 L 125 80 L 150 35 L 164 92 Q 165 95 164 98 L 159 122 Q 158 125 156 127 L 142 143 Q 140 145 138 147 L 124 160 Q 122 162 120 164 L 112 175 Q 100 184 88 175 L 80 164 Q 78 162 76 160 L 62 147 Q 60 145 58 143 L 44 127 Q 42 125 41 122 L 36 98 Q 35 95 36 92 Z" />
+      <g class="mark"><line x1="54" y1="131" x2="40" y2="129"/><line x1="60" y1="139" x2="46" y2="138"/><line x1="68" y1="147" x2="54" y2="149"/><line x1="146" y1="131" x2="160" y2="129"/><line x1="140" y1="139" x2="154" y2="138"/><line x1="132" y1="147" x2="146" y2="149"/></g>
+      <path class="nose" d="M 94 166 C 94 164 96 164 100 164 C 104 164 106 164 106 166 C 109 171 111 174 112 175 Q 100 184 88 175 C 89 174 91 171 94 166 Z" />
+      <g data-eyes="sleep"><path class="eye" d="M 75 114 C 80 124 88 123 93 116"/><path class="eye" d="M 107 116 C 112 123 119 124 125 114"/></g>
+    </svg>
+    <span class="label"><strong>sleep</strong><span class="when">long idle</span></span>
+  </div>
+
+  <div class="card state-card">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" class="knox" data-state="think" role="img" aria-label="Knox think">
+      <path class="fur" d="M 50 35 L 75 80 L 88 78 Q 100 88 112 78 L 125 80 L 150 35 L 164 92 Q 165 95 164 98 L 159 122 Q 158 125 156 127 L 142 143 Q 140 145 138 147 L 124 160 Q 122 162 120 164 L 112 175 Q 100 184 88 175 L 80 164 Q 78 162 76 160 L 62 147 Q 60 145 58 143 L 44 127 Q 42 125 41 122 L 36 98 Q 35 95 36 92 Z" />
+      <g class="mark"><line x1="54" y1="131" x2="40" y2="129"/><line x1="60" y1="139" x2="46" y2="138"/><line x1="68" y1="147" x2="54" y2="149"/><line x1="146" y1="131" x2="160" y2="129"/><line x1="140" y1="139" x2="154" y2="138"/><line x1="132" y1="147" x2="146" y2="149"/></g>
+      <path class="nose" d="M 94 166 C 94 164 96 164 100 164 C 104 164 106 164 106 166 C 109 171 111 174 112 175 Q 100 184 88 175 C 89 174 91 171 94 166 Z" />
+      <g data-eyes="think"><path class="eye" d="M 75 112 L 91 118 L 76 124"/><path class="eye" d="M 125 113 L 109 119 L 124 123"/></g>
+    </svg>
+    <span class="label"><strong>think</strong><span class="when">processing</span></span>
+  </div>
+
+  <div class="card state-card">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" class="knox" data-state="surprise" role="img" aria-label="Knox surprise">
+      <path class="fur" d="M 50 35 L 75 80 L 88 78 Q 100 88 112 78 L 125 80 L 150 35 L 164 92 Q 165 95 164 98 L 159 122 Q 158 125 156 127 L 142 143 Q 140 145 138 147 L 124 160 Q 122 162 120 164 L 112 175 Q 100 184 88 175 L 80 164 Q 78 162 76 160 L 62 147 Q 60 145 58 143 L 44 127 Q 42 125 41 122 L 36 98 Q 35 95 36 92 Z" />
+      <g class="mark"><line x1="54" y1="131" x2="40" y2="129"/><line x1="60" y1="139" x2="46" y2="138"/><line x1="68" y1="147" x2="54" y2="149"/><line x1="146" y1="131" x2="160" y2="129"/><line x1="140" y1="139" x2="154" y2="138"/><line x1="132" y1="147" x2="146" y2="149"/></g>
+      <path class="nose" d="M 94 166 C 94 164 96 164 100 164 C 104 164 106 164 106 166 C 109 171 111 174 112 175 Q 100 184 88 175 C 89 174 91 171 94 166 Z" />
+      <g data-eyes="surprise"><path class="iris" d="M 84 110 Q 90 111 91 116 Q 92 121 88 124 Q 84 126 80 124 Q 76 121 77 116 Q 78 111 84 110 Z"/><path class="iris" d="M 117 111 Q 122 111 124 116 Q 125 122 122 124 Q 117 127 113 124 Q 109 122 110 116 Q 112 110 117 111 Z"/><ellipse class="pupil" cx="83" cy="118" rx="2.3" ry="2.6"/><ellipse class="pupil" cx="116" cy="119" rx="2.4" ry="2.3"/></g>
+    </svg>
+    <span class="label"><strong>surprise</strong><span class="when">error, alert</span></span>
+  </div>
+</div>
+
+<h3>Logo do / don't</h3>
+<table>
+  <thead><tr><th>Do</th><th>Don't</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Pair <code>--knox-fur</code> and <code>--knox-ink</code> from the listed combos.</td>
+      <td>Mix colors from outside the primary/secondary/tertiary palette.</td>
+    </tr>
+    <tr>
+      <td>Place Knox on a surface listed for the chosen combo.</td>
+      <td>Place classic Knox on <code>--p-900</code> (ink and surface match — features disappear).</td>
+    </tr>
+    <tr>
+      <td>Keep stroke widths as defined in the SVG.</td>
+      <td>Add drop shadows, gradients, or extra colors.</td>
+    </tr>
+    <tr>
+      <td>Set <code>data-state</code> to communicate agent state.</td>
+      <td>Animate or transition the fox itself — state changes only.</td>
+    </tr>
+  </tbody>
+</table>
+
+</body>
+</html>
