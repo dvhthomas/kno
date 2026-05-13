@@ -2,9 +2,11 @@
 #
 # Every issue close must reference a PR, commit, or related issue. Three paths
 # are valid:
-#   1. Auto-close via `Closes #N` (or Fixes/Resolves) in a merged PR or in any
-#      commit pushed to main. The "closed" timeline event has `commit_id` set
-#      in both cases — that's how we detect this path.
+#   1. Auto-close via `Closes #N` (or Fixes/Resolves) in a merged PR's body OR
+#      in a commit pushed to main. Detected via GraphQL `ClosedEvent.closer` —
+#      returns the PR (with `merged`) or commit that triggered the close.
+#      (The REST timeline's `commit_id` is null when the closing reference is
+#      in the PR body of a squash-merge, which is why we use GraphQL.)
 #   2. Manual close with a comment naming a PR (#N), commit (≥7 hex chars), or
 #      related issue (#N). We check the last 2 comments.
 #   3. Workflow-initiated close (bot is the sender) — skipped to avoid loops.
@@ -33,15 +35,40 @@ jobs:
             const repo = context.repo;
             const issueNumber = context.payload.issue.number;
 
-            // 1) Auto-close via PR merge or direct commit?
-            //    Both populate `commit_id` on the "closed" timeline event.
-            const events = await github.paginate(
-              github.rest.issues.listEventsForTimeline,
-              { ...repo, issue_number: issueNumber, per_page: 100 }
+            // 1) Auto-close via merged PR or commit? Use GraphQL
+            //    ClosedEvent.closer — REST's commit_id is null for the common
+            //    "Closes #N in PR body + squash-merge" case.
+            const closerData = await github.graphql(
+              `query($owner: String!, $repo: String!, $number: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  issue(number: $number) {
+                    timelineItems(last: 30, itemTypes: [CLOSED_EVENT]) {
+                      nodes {
+                        ... on ClosedEvent {
+                          createdAt
+                          closer {
+                            __typename
+                            ... on PullRequest { number, merged }
+                            ... on Commit { abbreviatedOid }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }`,
+              { owner: repo.owner, repo: repo.repo, number: issueNumber }
             );
-            const closedEvent = [...events].reverse().find(e => e.event === "closed");
-            if (closedEvent?.commit_id) {
-              core.info(`Auto-closed by commit ${closedEvent.commit_id} — OK.`);
+            const closeEvents = closerData.repository.issue.timelineItems.nodes;
+            const lastClose = closeEvents[closeEvents.length - 1];
+            const closer = lastClose?.closer;
+
+            if (closer?.__typename === "PullRequest" && closer.merged) {
+              core.info(`Auto-closed by merged PR #${closer.number} — OK.`);
+              return;
+            }
+            if (closer?.__typename === "Commit") {
+              core.info(`Auto-closed by commit ${closer.abbreviatedOid} — OK.`);
               return;
             }
 
