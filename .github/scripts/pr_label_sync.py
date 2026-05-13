@@ -9,7 +9,11 @@ Local debug:
 
 from __future__ import annotations
 
+import json
+import os
 import re
+import subprocess
+import sys
 
 CLOSES_RE = re.compile(r"(?:Closes|Fixes|Resolves)\s+#(\d+)", re.IGNORECASE)
 
@@ -55,3 +59,54 @@ def transition_labels(
         return ([], [])
     to_remove = [l for l in LIFECYCLE if l != target and l in current]
     return (to_remove, [target])
+
+
+def _gh(args: list[str]) -> str:
+    """Run gh and return stdout. Caller handles non-zero exit."""
+    res = subprocess.run(["gh"] + args, capture_output=True, text=True, check=True)
+    return res.stdout
+
+
+def main() -> int:
+    repo = os.environ["GITHUB_REPOSITORY"]
+    body = os.environ.get("PR_BODY", "")
+    action = os.environ["PR_ACTION"]
+    is_draft = os.environ.get("PR_IS_DRAFT", "false").lower() == "true"
+
+    refs = parse_issue_refs(body)
+    if not refs:
+        print("No `Closes #N` — skip (pr-validate enforces presence separately).")
+        return 0
+
+    target = target_label(action, is_draft)
+    if target is None:
+        print(f"Unhandled action: {action}")
+        return 0
+
+    for n in refs:
+        try:
+            raw = _gh(["api", f"/repos/{repo}/issues/{n}", "--jq", "[.labels[].name]"])
+        except subprocess.CalledProcessError as e:
+            if "404" in (e.stderr or ""):
+                print(f"#{n} not found — skip.")
+                continue
+            raise
+        current = json.loads(raw) if raw.strip() else []
+
+        to_remove, to_add = transition_labels(current, target, action, is_draft)
+        if not to_remove and not to_add:
+            print(f"#{n} already at `{target}` (or protected from downgrade) — no-op.")
+            continue
+
+        for label in to_remove:
+            _gh(["api", "-X", "DELETE", f"/repos/{repo}/issues/{n}/labels/{label}"])
+            print(f"Removed `{label}` from #{n}")
+        for label in to_add:
+            _gh(["api", "-X", "POST", f"/repos/{repo}/issues/{n}/labels",
+                 "-f", f"labels[]={label}"])
+            print(f"Added `{label}` to #{n}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
