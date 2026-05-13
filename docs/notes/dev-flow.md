@@ -27,7 +27,7 @@ PR-only merges to `main`. No direct pushes once branch protection lands (Phase 2
 2. **Branch:** `git checkout -b feat/<issue#>-<slug>`.
 3. **Code via strict TDD** per [`AGENTS.md`](../../AGENTS.md). Multiple red→green commits in one PR is fine; each individual change still follows the cycle.
 4. **Push, open PR with `Closes #<n>`.** CI (Phase 2 onward) runs `poe lint` + `poe typecheck` + `poe test`.
-5. **Move the card on the Projects v2 board** to "In review" → `in-review` label auto-applied within 15 min (see [Labels](#labels)).
+5. **Move the card on the Projects v2 board** to "In Review" → `in-review` label auto-applied within 15 min (see [Labels](#labels)).
 6. **Review, merge.** Closing the issue auto-moves the card to "Done" → `done` label applied.
 7. **Deploy is automatic from `main`** once Phase 2 task 2.8 (CI deploy workflow) ships.
 
@@ -48,7 +48,7 @@ Four buckets. Each managed by a different mechanism so authority is clear:
 
 ## Project board: how to move a card
 
-Six columns on [project 3](https://github.com/users/dvhthomas/projects/3): **Ideas → Shaping → In progress → Blocked → In review → Shipped**. Three close-states (**Shipped**, **Wontfix**, **Duplicate**) — see closing rule below.
+Six columns on [project 3](https://github.com/users/dvhthomas/projects/3): **Ideas → Shaping → In Progress → Blocked → In Review → Shipped**. Three close-states (**Shipped**, **Wontfix**, **Duplicate**) — see closing rule below.
 
 ### State diagram
 
@@ -120,9 +120,9 @@ gh pr create --draft --base main \
     --title "<type>: …" --body "Closes #<n>"
 ```
 
-First commits in Shaping can be design notes, a failing test, or an empty placeholder. Production code waits for **In progress** (strict TDD per [`AGENTS.md`](../../AGENTS.md)).
+First commits in Shaping can be design notes, a failing test, or an empty placeholder. Production code waits for **In Progress** (strict TDD per [`AGENTS.md`](../../AGENTS.md)).
 
-### **Shaping → In progress** — active work begins; cycle time starts
+### **Shaping → In Progress** — active work begins; cycle time starts
 
 ```bash
 gh issue edit <n> --remove-label shaping --add-label in-progress
@@ -130,27 +130,27 @@ gh issue edit <n> --remove-label shaping --add-label in-progress
 
 Strict TDD from here: red → green → refactor for every production code change. Push to the existing draft PR.
 
-### **In progress → Blocked** — sideways step
+### **In Progress → Blocked** — sideways step
 
 ```bash
 gh issue comment <n> --body "Blocked on <reason>. Will resume when <condition>."
 gh issue edit <n> --remove-label in-progress --add-label blocked
 ```
 
-### **Blocked → In progress** — blocker resolved
+### **Blocked → In Progress** — blocker resolved
 
 ```bash
 gh issue edit <n> --remove-label blocked --add-label in-progress
 ```
 
-### **In progress → In review** — mark PR ready for human review
+### **In Progress → In Review** — mark PR ready for human review
 
 ```bash
 gh pr ready <pr#>
 gh issue edit <n> --remove-label in-progress --add-label in-review
 ```
 
-### **In review → Shipped** — merge
+### **In Review → Shipped** — merge
 
 ```bash
 gh pr merge <pr#> --squash --delete-branch
@@ -158,7 +158,7 @@ gh pr merge <pr#> --squash --delete-branch
 # `done` label arrives within 15 min via project-label-sync.
 ```
 
-### **In review → deprioritized** — issue stays open
+### **In Review → deprioritized** — issue stays open
 
 The "we'll reconsider later" path. Issue does **not** close.
 
@@ -207,7 +207,7 @@ The `duplicate` label is required so the issue is filterable later (`gh issue li
 
 This needs doing once when you first push the repo:
 
-1. **Create a Projects v2 board** at https://github.com/users/dvhthomas/projects with the columns above (Ideas, Shaping, In progress, Blocked, In review, Shipped). *(Already done — [project 3](https://github.com/users/dvhthomas/projects/3).)*
+1. **Create a Projects v2 board** at https://github.com/users/dvhthomas/projects with the columns above (Ideas, Shaping, In Progress, Blocked, In Review, Shipped). *(Already done — [project 3](https://github.com/users/dvhthomas/projects/3).)*
 2. **Update the project URL** in `project-label-sync.yml` → `project-url:`.
 3. **Create a classic personal-access token** with `project` + `repo` scopes:
    https://github.com/settings/tokens/new?scopes=project,repo&description=kno-project-label-sync

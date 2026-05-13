@@ -2,11 +2,15 @@
 # board's Status field with issue labels on this repo.
 #
 # How it works:
-#   - Move a card to "In progress" on the board → `in-progress` label appears
+#   - Move a card to "In Progress" on the board → `in-progress` label appears
 #     on the issue within ~15 minutes (cron schedule in
 #     .github/workflows/label-sync.yml).
-#   - Add the `in-progress` label by hand → the card moves to "In progress"
+#   - Add the `in-progress` label by hand → the card moves to "In Progress"
 #     on the board on the next run.
+#
+# NOTE: Status field option names below must match the board exactly
+# (case-sensitive). The board has "In Progress" and "In Review" with capital
+# P and R — not "In progress" / "In review".
 #
 # ⚠ Edit the project-url below to point at the correct Projects v2 board
 # once you've created it. See docs/notes/dev-flow.md for the one-time
@@ -21,11 +25,11 @@ field: Status
 mapping:
   Shaping:
     - shaping
-  "In progress":
+  "In Progress":
     - in-progress
   Blocked:
     - blocked
-  "In review":
+  "In Review":
     - in-review
   Shipped:
     - done
