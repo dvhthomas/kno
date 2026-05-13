@@ -322,16 +322,20 @@ Conventions:
 - Verify: `docs/verification/v1-week-1.md` with cost summary + top surprises + refinement outcomes; total Anthropic spend < $10 for the week.
 - Files: `docs/verification/v1-week-1.md`.
 
-### 2.12 `kno setup` interactive wizard **[F]** *Depends on 0.23, 2.5*
-- Acceptance per ADR-0018 §2.3 item 11: `uv run kno setup` walks the user through every `.env` value step-by-step.
-  - Opens browser tabs to provider consoles via `webbrowser.open()` at the right moments (Anthropic keys page, Google Cloud Console credentials, GitHub Developer Settings OAuth Apps).
-  - Prompts for paste-backs of client IDs, secrets, API keys (uses `getpass.getpass()` for secret-grade values).
-  - Verifies each value works before continuing: Anthropic key against `messages` endpoint with a 1-token probe; Ollama against `/api/embeddings`; GitHub OAuth client by attempting the authorization URL.
-  - Generates Fernet KEK and session secret automatically; never prompts for them.
-  - Writes `.env` directly (mode 0600; gitignored).
-  - **Resumable**: writes `.env.partial` after each step; re-running `kno setup` picks up where it left off; fully populated `.env` triggers "configuration complete; run `kno setup --reconfigure` to start over."
-- Verify: from a fresh clone with no `.env`, `kno setup` walks to a working setup in ~15 minutes; second invocation against a complete `.env` says "complete; use --reconfigure"; ^C during the wizard preserves `.env.partial`; resume picks up cleanly.
-- Files: `src/kno/cli/setup.py`, `src/kno/services/setup_validators.py`, `tests/integration/test_setup_wizard.py`.
+### 2.12 Web-based first-run setup wizard **[F][S]** *Depends on 0.17, 0.23*
+- Acceptance per ADR-0018 §2.3 item 11: `uv run kno serve` against a missing or incomplete `.env` boots into **setup mode** and serves a multi-step wizard at `/setup`. All other request paths return a 503 redirecting to `/setup`. The wizard:
+  - Detects "incomplete `.env`" by checking the required-keys list in `kno.config.Settings`; if any are missing, setup mode is on.
+  - Renders a step-by-step UI (HTMX; each step a small form) covering: Anthropic API key, Ollama probes, Google OAuth client, GitHub OAuth client (local + optional prod), local secret generation, `.env` write.
+  - **Inline live validation per step**: posting Anthropic key → server hits `/v1/messages` with a 1-token probe → success or specific error rendered inline. Same shape for Ollama (`/api/embeddings` probe), Google + GitHub client IDs (validates by attempting the authorize URL).
+  - Generates Fernet KEK + session secret automatically with one-click "Generate" buttons; never prompts the user to type these.
+  - **Resumable**: each step's accepted values are persisted to `.env.partial` (mode 0600) so server restarts mid-wizard don't lose progress. Final step writes `.env` and removes `.env.partial`.
+  - **Two output modes** at the final step:
+    - Local: write `.env`; run `alembic upgrade head`; reload the server (uvicorn reload or instruct user to Ctrl-C).
+    - Fly: emit a `fly secrets set ...` shell command block (one big command with all the values), with copy-to-clipboard button. No `.env` written.
+  - **Security**: setup mode binds to `127.0.0.1` only (not `0.0.0.0`) regardless of `KNO_HOST` setting, to prevent accidental remote setup. Setup-mode terminal output prints a setup-token; the wizard requires it in the first form to confirm "you have terminal access to this machine." Token rotated each boot.
+  - **No CLI variant** in v1 — consistent with v0.8's "browser is canonical" decision.
+- Verify: from a fresh clone with no `.env`: `uv run kno serve` boots, prints a setup-token, opens to `/setup`; walking the wizard end-to-end takes ~15 minutes and produces a working `.env`; ^C mid-wizard preserves `.env.partial`; restart resumes; completed setup with `.env` populated boots normally; `--reconfigure` flag re-enters setup mode.
+- Files: `src/kno/api/setup_mode.py`, `src/kno/services/setup_validators.py`, `src/kno/web/routes/setup.py`, `src/kno/web/templates/setup/{step_*.html, layout.html}`, `tests/integration/test_setup_wizard.py`.
 
 ### 2.13 `kno export` data portability **[F]** *Depends on 0.23*
 - Acceptance per ADR-0018 §2.3 item 12: `uv run kno export [--category C] [--output PATH] [--format directory|tarball]`. Default produces `./kno-export-<UTC-timestamp>.tar.gz` containing:

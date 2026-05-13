@@ -201,7 +201,7 @@ Each skill is a 1–2 page markdown body the owner writes (or has Kno-the-design
    - `.github/workflows/ci.yml` — lint + type + test + eval suite
    - `.github/workflows/deploy.yml` — push to `main` → `fly deploy`
 10. **README + ops doc**: clone + setup + run locally; Fly deploy; data deletion; key rotation; backup/restore/export; how to add a new workflow.
-11. **`kno setup` interactive wizard** (per ADR-0018 §2.3 item 11): from a fresh clone, walks through every `.env` value with browser-opened provider consoles and verified paste-backs. ~15 minutes vs. ~30+ through the docs. Resumable.
+11. **Web-based first-run setup wizard** (per ADR-0018 §2.3 item 11): when `.env` is missing or incomplete, server boots into setup mode and serves a multi-step HTMX wizard at `/setup` with inline live validation of every provider value. Writes `.env` on completion (or emits `fly secrets set ...` for Fly deploys). ~15 minutes. **Consistent with v0.8's "browser is canonical" principle** — no CLI variant. The ops manual stays as reference + hand-edit fallback.
 12. **`kno export` human-readable data portability** (per ADR-0018 §2.3 item 12): produces a markdown/JSON/CSV archive of conversations, semantic facts, KB content, cost ledger, feedback. Distinct from `kno backup` (which is opaque-restore). Per-category like `kno wipe`.
 13. **One-week real-usage validation**: Dylan uses Kno daily for 7 days. Daily review of `model_calls` ledger; weekly retrospective of `/admin/refine` outcomes. Includes one fresh-machine `kno setup` run and one `kno export` round-trip to exercise the new commands on real data.
 

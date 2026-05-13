@@ -77,13 +77,15 @@ ls docs/
 
 ## 3. Provider setup
 
-> **Read this section once. Do these steps once.** After §3 is done, signing in with another account inside Kno is a single button click in `/ui/connections` (§6) — no developer-console trips, no env-var edits, no Kno restart. The manual is dense here because OAuth-app registration is dense; the actual product experience isn't. Don't let §3's volume scare you — the recurring user experience lives in §7 and beyond.
+> **The fast path: just run `uv run kno serve` and let the web wizard guide you.** The server boots into **setup mode** when `.env` is missing or incomplete, serves a wizard at `http://localhost:8000/setup`, and walks every step below with **live validation** (paste your Anthropic key → server tests it in real time → green check or precise error). Same for Ollama, Google OAuth, GitHub OAuth. Generates the Fernet KEK and session secret with one click. Writes `.env` on submit. ~15 minutes.
+>
+> **Read this section if** the wizard fails on a step and you need the underlying detail, OR you're doing a Fly deployment (the wizard has a Fly mode that emits `fly secrets set` commands for you, but understanding the provider-side setup helps when troubleshooting), OR you prefer doing it by hand.
+>
+> After setup is done — by wizard or by hand — signing in with another account inside Kno is a single button click in `/ui/connections` (§6). No developer-console trips, no env-var edits, no Kno restart. The recurring user experience lives in §7 and beyond.
 
-This is the section to read carefully. It's the densest part of setup and the most common source of "I copied a value to the wrong field" errors.
+This section is the reference detail behind what the wizard does. The order goes from **simplest** (Anthropic — one click) to **most involved** (GitHub OAuth Apps — you may need two). If you're using the wizard, it walks these in the same order.
 
-The order below goes from **simplest** (Anthropic — one click) to **most involved** (GitHub OAuth Apps — you may need two). Do them in this order; later steps depend on earlier ones.
-
-By the end of §3 you'll have collected **8–10 values** that go into `.env` in §4. As you copy each value, paste it into a *scratch buffer* (a note file, password manager, doesn't matter — just somewhere you can find it again). We assemble `.env` all at once at the end.
+By the end of §3 you'll have collected **8–10 values**. The wizard collects them into `.env` directly; if you're doing it by hand, paste each value into a *scratch buffer* and assemble `.env` in §4.
 
 ### 3.1 Anthropic API key
 
@@ -399,7 +401,9 @@ Counts non-comment lines. Expected: 14–16 (depending on whether you set Honeyc
 
 ## 5. First boot
 
-Sequential — each step depends on the previous one.
+**If you used the web setup wizard (§3 fast path)**, `.env` is already written and Kno is already running normally. Skip to §6.
+
+**If you did `.env` by hand**:
 
 ```bash
 # 1. Install deps + create venv
@@ -414,6 +418,18 @@ uv run alembic upgrade head
 # 4. Start Kno
 uv run kno serve
 ```
+
+**If you're starting fresh and haven't created `.env` yet**, just do steps 1, 2, and 4 — the server will boot into setup mode and walk you through the wizard:
+
+```bash
+uv sync
+mkdir -p data
+uv run kno serve
+# Boot output will print: "setup mode active; visit http://localhost:8000/setup"
+# Plus a setup-token to paste into the first form.
+```
+
+Open `http://localhost:8000/setup` in your browser. The wizard handles `.env` write + migration + reload automatically.
 
 **Expected output** at step 4 (rough; actual lines will vary):
 ```
