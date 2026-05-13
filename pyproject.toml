@@ -1,0 +1,82 @@
+[project]
+name = "kno"
+version = "0.0.1"
+description = "Personal agent harness."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { file = "LICENSE" }
+authors = [{ name = "Dylan Thomas" }]
+
+# v1 deps land per-task as features come online. v0.0.1 (project skeleton)
+# only needs typer so the `kno` CLI entry point resolves.
+dependencies = [
+    "typer>=0.12,<1.0",
+]
+
+[project.scripts]
+kno = "kno.cli.main:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# Dev tooling via PEP 735 dependency groups (uv-native).
+# Activate with `uv sync` (default includes dev).
+[dependency-groups]
+dev = [
+    "ruff>=0.6,<1.0",
+    "mypy>=1.10",
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pre-commit>=3.7",
+    "poethepoet>=0.30",
+]
+
+# ─── Task runner ──────────────────────────────────────────────────────────────
+# Tasks live here instead of in a Makefile. Invoke as:
+#   `uv run poe <task>` (works out of the box after `uv sync`)
+#   or `poe <task>` after `uv tool install poethepoet`
+[tool.poe.tasks]
+lint      = "ruff check src tests"
+format    = "ruff format src tests"
+typecheck = "mypy src tests"
+test      = "pytest"
+# `serve` and `migrate` added in Phase 0 tasks 0.10 and 0.3 respectively.
+
+# ─── ruff ─────────────────────────────────────────────────────────────────────
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+    "N",   # pep8-naming
+    "RUF", # ruff-specific
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["N802"]  # allow non-snake_case test fn names if needed
+
+# ─── mypy ─────────────────────────────────────────────────────────────────────
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = "src"
+namespace_packages = false
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+# ─── pytest ───────────────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-ra"
