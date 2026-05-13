@@ -29,7 +29,8 @@ def _free_port() -> int:
     re-bind — acceptable for a single-developer-machine test."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((HOST, 0))
-        return s.getsockname()[1]
+        port: int = s.getsockname()[1]
+        return port
 
 
 @pytest.fixture
