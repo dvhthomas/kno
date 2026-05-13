@@ -91,8 +91,8 @@ Conventions:
 - Files: `src/kno/skills/{loader.py, schema.py, registry.py}`.
 
 ### 0.12 Workflow loader (kind: chat; persona inline; no Agent layer) **[B]** *Depends on 0.11*
-- Acceptance: parse `data/workflows/<slug>/workflow.yaml` into `WorkflowConfig`; persona is a `persona: persona.md` reference inline (no separate Agent primitive per ADR-0018); validates `kind: chat`; resolves skill includes.
-- Verify: unit test loads `default` workflow; persona content + skills properly inlined.
+- Acceptance: parse `data/workflows/<slug>/workflow.yaml` into `WorkflowConfig`; persona is a `persona: persona.md` reference inline (no separate Agent primitive per ADR-0018); validates `kind: chat`; resolves skill includes. Schema includes optional `tools.connections: {provider: [labels]}` block per ADR-0019 §2.5 (per-workflow connection ticks).
+- Verify: unit test loads `default` workflow; persona content + skills properly inlined; `tools.connections` parses when present and defaults to "all user's connections for provider" when absent.
 - Files: `src/kno/workflows/{loader.py, schema.py, registry.py, kinds/chat.py}`.
 
 ### 0.13 Working memory + virtual files + 80% compaction **[P with 0.14]**

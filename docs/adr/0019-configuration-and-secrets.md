@@ -157,19 +157,79 @@ Provider-side:
 - **The app's callback URL** matches the deployment (`http://localhost:8000/api/auth/<provider>/callback` for local, `https://kno.fly.dev/api/auth/<provider>/callback` for hosted). Both are registered as authorized redirect URIs in the OAuth client config.
 - **Scopes are declared per-provider in code** (`src/kno/auth/providers/<name>.py`), not in `.env`. They're part of Kno's identity, not deployment config.
 
-#### Connection selection at tool-call time
+#### Connection selection: per-workflow checkboxes (layered authority)
 
-Once a user has multiple connections to the same provider, tools must pick which to use. **Kno-Lite v1 ships single-connection-per-provider** (no multi-account UX surfaced; the schema allows it but the UI doesn't), so this is a v2 concern. The decision space, recorded so v2 can resolve cleanly:
+When a user has multiple connections to a provider and a workflow uses that provider, **the workflow's configuration declares which connection(s) are permitted**. The user ticks 1+ boxes per provider in the workflow's settings UI. Within that ticked set, the agent decides at tool-call time which to use for a specific call.
 
-| Strategy | When to use |
-|---|---|
-| **Tool argument: `connection_label`** | When the agent has enough context to choose ("read the Q4 plan from Work"); explicit; testable |
-| **Workflow default**: `tools.gdrive.default_connection: "Work"` in workflow YAML | When a workflow is opinionated about which account is canonical |
-| **Most-recently-used per provider** | Fallback when nothing else specifies; surfaces as a `last_used_at` query |
-| **Agent asks the user** | When ambiguous; result stored in `semantic_facts` ("for repos under `alwaysmap`, prefer Work GitHub") |
-| **All connections, fan out + merge** | Power-user: `kb_search` could query KB docs ingested under either Google account |
+This is **layered authority**: user sets the permitted set; agent selects within it. The agent has no path to a connection the user didn't tick.
 
-v2 ADR-to-come will pick a default + escape hatch. Likeliest landing: tool argument is the contract; workflow default fills it; agent asks if neither resolves; "all connections" as an opt-in mode for fan-out tools.
+##### Storage — workflow YAML
+
+```yaml
+# data/workflows/flow-coach/workflow.yaml
+name: flow-coach
+kind: chat
+persona: persona.md
+tools:
+  allow:
+    - mcp:github
+    - mcp:flowmetrics
+    - mcp:kb_search
+    - mcp:remember_fact
+  connections:
+    # Per-provider list of connection_labels permitted for this workflow.
+    # Optional; absent means "all of the user's connections for the
+    # provider are eligible" (the v1 default since users only have one
+    # each).
+    github: ["Personal"]
+```
+
+##### UI — `/ui/workflows/<slug>` edit page
+
+For each MCP server in `tools.allow` that requires a provider connection, the form shows a `<fieldset>` listing the user's authorized connections for that provider with checkboxes. The user ticks 1+. Saved to `tools.connections[provider]` in the workflow YAML; workflow version bumped per the standard save flow.
+
+```
+☑ mcp:github
+    Available GitHub accounts:
+     ☑ Personal       (last used 1h ago)
+     ☐ Work — alwaysmap
+     [ + Connect another GitHub account ]
+```
+
+A separate `[ + Connect another <provider> account ]` link opens the standard `/ui/connections` OAuth flow with a banner "connecting will return you here." After the new connection is saved, the user is bounced back to the workflow edit page with the new account appearing as an unchecked checkbox.
+
+##### Resolution rule at tool-call time
+
+The MCP host receives a tool call from a workflow's run. Resolves the connection set:
+
+1. If `workflow.tools.connections[provider]` is set: agent may only use connections whose `connection_label` is in that list.
+   - Single label in list → use that connection.
+   - Multiple labels in list → agent picks (typically by passing `connection_label` as a tool argument the synth node populates; tools that legitimately want all-of fan out themselves).
+2. If `workflow.tools.connections[provider]` is absent → all of the user's connections for that provider are eligible. Same selection logic within the eligible set.
+3. If the eligible set is empty for a required provider → tool returns a clear error: `"no <provider> account selected for this workflow; tick one in workflow settings at /ui/workflows/<slug>"`. Agent surfaces verbatim to the user.
+
+##### v1 vs v2 split
+
+| Concern | v1 (Kno-Lite) | v2 |
+|---|---|---|
+| Schema (`tools.connections` in YAML) | Ships | Same |
+| Resolution logic in MCP host | Ships (works with single connection too) | Same |
+| UI: `<fieldset>` per provider | Ships **as a single dropdown** (v1 has one connection per provider) | Becomes a checkbox group |
+| `[ + Connect another <provider> account ]` link | Hidden in v1 | Visible |
+| Per-chat override (one-conversation alternate selection) | Out of scope | Reserved as an OQ |
+
+The v1 single-connection world makes the UI vacuous (one box, default-checked). The data model is correct from day one; when v2 enables multi-account UX, the UI lights up without a schema migration.
+
+##### Why this is simpler than the alternatives
+
+- **No "tool argument" contract creep.** Tools that need a `connection_label` arg get it from the run's resolved set; the agent doesn't have to invent it.
+- **No MRU heuristic.** No "but it picked the wrong one" debugging.
+- **No agent-asks-for-clarification.** The workflow's ticks are the answer.
+- **Fan-out is opt-in per tool.** Tools that semantically want all-of (like a cross-account KB search) iterate the resolved set themselves; tools that don't always pick.
+
+##### Reserved OQ: per-chat override
+
+A small UI affordance — a connection-set dropdown at the top of `/ui/chat` letting the user override the workflow's defaults for *this conversation only* (no workflow version bump). Useful pattern: "ask Flow Coach about Work just this once." Not in v1 scope; tracked as a v2 follow-on. Will surface naturally if/when daily use produces the "I keep editing the workflow and switching it back" annoyance.
 
 ### 2.6 Agent memory (`semantic_facts`, future `episodic_sessions`)
 
