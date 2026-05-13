@@ -2,9 +2,24 @@
 # carry a code-reviewer subagent comment with `**Verdict:** APPROVE` before
 # the merge gate opens. Failure to find one blocks the check.
 #
-# The marker is `## Code-reviewer subagent` at the start of a line, anywhere
-# in the comment body. This matches the convention used in PR #10's review
-# comments.
+# Heading convention — STRICT: the marker comment's heading must be
+# exactly `## Code-reviewer subagent` at the start of a line (the trailing
+# `— pre-merge review` or similar is fine). Variations like emoji-prefixed
+# (`## 🤖 Code-reviewer subagent`) or indented (`  ## Code-reviewer ...`)
+# will not match and the gate will fail. Keep heading exact.
+#
+# Verdict convention — STRICT: a line containing exactly `**Verdict:**
+# APPROVE` (no trailing text on that line). The skill template legend
+# `APPROVE | REQUEST CHANGES` does NOT pass — it's not anchored to the
+# whole line.
+#
+# Known limitations (intentional, see PR #13 review):
+#   - `pull_request` runs the workflow from head SHA — a malicious head
+#     could neuter the gate. Acceptable for solo-repo phase; Phase 3
+#     (collaborator-readiness) will revisit `pull_request_target`.
+#   - Edits to an APPROVE comment after the gate runs don't re-fire the
+#     check. `synchronize` (each push) re-evaluates, so the stale window
+#     is bounded by "no further pushes."
 
 name: PR review gate
 
@@ -33,7 +48,10 @@ jobs:
             );
 
             const MARKER = /^##\s+Code-reviewer subagent/m;
-            const APPROVE = /\*\*Verdict:\*\*\s*APPROVE/i;
+            // Anchored to whole line: kills false matches from the template's
+            // "APPROVE | REQUEST CHANGES" legend and from "APPROVE_PENDING"-style
+            // substrings.
+            const APPROVE = /^\s*\*\*Verdict:\*\*\s*APPROVE\s*$/im;
 
             const reviewComments = comments
               .filter(c => MARKER.test(c.body || ""))

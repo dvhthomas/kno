@@ -23,35 +23,23 @@ jobs:
             const action = context.payload.action;
             const isDraft = pr.draft;
 
-            const m = (pr.body || "").match(/(?:Closes|Fixes|Resolves)\s+#(\d+)/i);
-            if (!m) {
+            // Multi-issue support: a PR can legitimately close multiple issues
+            // (e.g. `Closes #11` + `Closes #12`). Label each one.
+            const matches = [...(pr.body || "").matchAll(/(?:Closes|Fixes|Resolves)\s+#(\d+)/gi)];
+            if (matches.length === 0) {
               core.info("No `Closes #N` — skip (pr-validate enforces presence separately).");
               return;
             }
-            const issueNum = parseInt(m[1], 10);
+            const issueNums = [...new Set(matches.map(m => parseInt(m[1], 10)))];
 
-            let issue;
-            try {
-              const resp = await github.rest.issues.get({ ...context.repo, issue_number: issueNum });
-              issue = resp.data;
-            } catch (e) {
-              if (e.status === 404) {
-                core.info(`Issue #${issueNum} not found — skip.`);
-                return;
-              }
-              throw e;
-            }
-            const labels = issue.labels.map(l => (typeof l === "string" ? l : l.name));
             const LIFECYCLE = ["shaping", "in-progress", "in-review"];
 
-            // Decide target lifecycle label.
+            // Decide target lifecycle label (same for all closed issues).
             let target;
-            if (action === "opened" && isDraft) {
-              if (LIFECYCLE.some(l => labels.includes(l))) {
-                core.info(`#${issueNum} already has a lifecycle label; don't downgrade.`);
-                return;
-              }
-              target = "shaping";
+            if (action === "opened") {
+              // Both draft and ready-for-review variants land here. PRs that open
+              // ready (skipping draft) go straight to in-review.
+              target = isDraft ? "shaping" : "in-review";
             } else if (action === "ready_for_review") {
               target = "in-review";
             } else if (action === "converted_to_draft") {
@@ -63,20 +51,40 @@ jobs:
               return;
             }
 
-            if (labels.includes(target)) {
-              core.info(`#${issueNum} already has \`${target}\` — idempotent no-op.`);
-              return;
-            }
+            for (const issueNum of issueNums) {
+              let issue;
+              try {
+                const resp = await github.rest.issues.get({ ...context.repo, issue_number: issueNum });
+                issue = resp.data;
+              } catch (e) {
+                if (e.status === 404) {
+                  core.info(`#${issueNum} not found — skip.`);
+                  continue;
+                }
+                throw e;
+              }
+              const labels = issue.labels.map(l => (typeof l === "string" ? l : l.name));
 
-            // Remove conflicting lifecycle labels first.
-            for (const l of LIFECYCLE.filter(l => l !== target && labels.includes(l))) {
-              await github.rest.issues.removeLabel({
-                ...context.repo, issue_number: issueNum, name: l
+              // For opened-as-draft only: don't downgrade an existing lifecycle label.
+              if (action === "opened" && isDraft && LIFECYCLE.some(l => labels.includes(l))) {
+                core.info(`#${issueNum} already has a lifecycle label; don't downgrade.`);
+                continue;
+              }
+
+              if (labels.includes(target)) {
+                core.info(`#${issueNum} already has \`${target}\` — idempotent no-op.`);
+                continue;
+              }
+
+              for (const l of LIFECYCLE.filter(l => l !== target && labels.includes(l))) {
+                await github.rest.issues.removeLabel({
+                  ...context.repo, issue_number: issueNum, name: l
+                });
+                core.info(`Removed \`${l}\` from #${issueNum}`);
+              }
+
+              await github.rest.issues.addLabels({
+                ...context.repo, issue_number: issueNum, labels: [target]
               });
-              core.info(`Removed \`${l}\` from #${issueNum}`);
+              core.info(`Added \`${target}\` to #${issueNum}`);
             }
-
-            await github.rest.issues.addLabels({
-              ...context.repo, issue_number: issueNum, labels: [target]
-            });
-            core.info(`Added \`${target}\` to #${issueNum}`);
