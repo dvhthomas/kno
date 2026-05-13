@@ -317,10 +317,37 @@ Conventions:
 ### 2.10 ADR-0012 draft (version retention) **[F]**
 - Files: `docs/adr/0012-version-retention.md`.
 
-### 2.11 One-week real-usage validation **[B][S]** *Depends on 2.7*
-- Acceptance: Dylan uses Kno daily for 7 days. Daily review of `model_calls` ledger; weekly retrospective of `/admin/refine` outcomes (accepted vs rejected; eval-score deltas).
+### 2.11 One-week real-usage validation **[B][S]** *Depends on 2.7, 2.12, 2.13*
+- Acceptance: Dylan uses Kno daily for 7 days. Daily review of `model_calls` ledger; weekly retrospective of `/admin/refine` outcomes (accepted vs rejected; eval-score deltas). **Includes one fresh-machine `kno setup` dry-run (2.12) and one `kno export` round-trip (2.13)** so both new commands get exercised on real data before v1 is called done.
 - Verify: `docs/verification/v1-week-1.md` with cost summary + top surprises + refinement outcomes; total Anthropic spend < $10 for the week.
 - Files: `docs/verification/v1-week-1.md`.
+
+### 2.12 `kno setup` interactive wizard **[F]** *Depends on 0.23, 2.5*
+- Acceptance per ADR-0018 §2.3 item 11: `uv run kno setup` walks the user through every `.env` value step-by-step.
+  - Opens browser tabs to provider consoles via `webbrowser.open()` at the right moments (Anthropic keys page, Google Cloud Console credentials, GitHub Developer Settings OAuth Apps).
+  - Prompts for paste-backs of client IDs, secrets, API keys (uses `getpass.getpass()` for secret-grade values).
+  - Verifies each value works before continuing: Anthropic key against `messages` endpoint with a 1-token probe; Ollama against `/api/embeddings`; GitHub OAuth client by attempting the authorization URL.
+  - Generates Fernet KEK and session secret automatically; never prompts for them.
+  - Writes `.env` directly (mode 0600; gitignored).
+  - **Resumable**: writes `.env.partial` after each step; re-running `kno setup` picks up where it left off; fully populated `.env` triggers "configuration complete; run `kno setup --reconfigure` to start over."
+- Verify: from a fresh clone with no `.env`, `kno setup` walks to a working setup in ~15 minutes; second invocation against a complete `.env` says "complete; use --reconfigure"; ^C during the wizard preserves `.env.partial`; resume picks up cleanly.
+- Files: `src/kno/cli/setup.py`, `src/kno/services/setup_validators.py`, `tests/integration/test_setup_wizard.py`.
+
+### 2.13 `kno export` data portability **[F]** *Depends on 0.23*
+- Acceptance per ADR-0018 §2.3 item 12: `uv run kno export [--category C] [--output PATH] [--format directory|tarball]`. Default produces `./kno-export-<UTC-timestamp>.tar.gz` containing:
+  - `README.md` — machine-generated archive overview (what's inside, schema versions, timestamps, total bytes).
+  - `conversations/<YYYY-MM-DD>-<thread-slug>.md` — one markdown per thread; timestamps, role headers, content, inline tool-call blocks; reverse-chronological.
+  - `semantic_facts.json` — current facts as JSON (or `semantic_facts.md` for human reading).
+  - `kb_sources/<provider>-<org>-<repo>/` — per-source dir; `_meta.json` with repo+sha pointers; reconstructed chunk text as `chunks/<doc>.md` with citation refs.
+  - `model_calls.csv` — full cost ledger; one row per LLM call; columns `(ts, model, tokens_in, tokens_out, cached_tokens, cost_usd, run_id, workflow)`.
+  - `feedback.json` — 👍/👎 ratings with run-id linkage and comments.
+  - `connections.json` — list of `{provider, connection_label, scopes, created_at, last_used_at}`; **never includes the encrypted token values themselves**.
+  - `workflows/`, `agents/`, `skills/` — straight copies from `data/` (already filesystem-as-truth).
+  - `evals/` — eval cases + recent eval-run results.
+  - `runs/<run_id>.json` — optional verbose timeline (off by default; `--verbose` includes them).
+  - Per-category like `kno wipe`: `--category conversations|kb|semantic-facts|connections|all`.
+- Verify: export from a populated test instance produces a readable archive; `cat conversations/*.md` shows human-readable threads; `connections.json` contains zero `*_enc` fields; round-trip with `kno backup` is unaffected (export is read-only, doesn't touch DB state); same-day export is idempotent.
+- Files: `src/kno/cli/export.py`, `src/kno/services/export.py`, `tests/integration/test_export.py`.
 
 ### Phase 2 verification checkpoint = v1 release
 - [ ] End-to-end refinement cycle works on a real 👎 case.
@@ -328,9 +355,11 @@ Conventions:
 - [ ] `kno rotate-keys` successfully rotates encryption.
 - [ ] Anthropic-outage drill: Ollama fallback produces coherent responses. (If not, drill failed → document and decide whether to ship with no fallback or fix.)
 - [ ] `kno wipe --category all --confirm` on a test deploy zeros user data cleanly.
+- [ ] **`kno setup` works on a fresh machine** — clone a fresh copy, run the wizard, end up with a working `.env` and Kno running. (Per ADR-0018 §2.3 item 11.)
+- [ ] **`kno export` produces a human-readable archive** — extract it, open `conversations/*.md` in a text editor, the threads are legible; `connections.json` contains zero token values. (Per ADR-0018 §2.3 item 12.)
 - [ ] Deployed at `kno.fly.dev`; `/api/health` returns 200; login works.
 - [ ] One full week of real usage; spend < $10.
-- [ ] All ADRs through 0018 in `docs/adr/` are drafted.
+- [ ] All ADRs through 0019 in `docs/adr/` are drafted.
 - [ ] `docs/verification/phase-2.md` and `v1-release.md` committed.
 
 ---

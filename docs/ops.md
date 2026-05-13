@@ -525,11 +525,20 @@ If that works end-to-end, your Kno is real.
 
 ---
 
-## 8. Backup, restore, wipe
+## 8. Backup, restore, wipe, export
+
+Four commands cover the data-portability lifecycle. Each has a distinct purpose; don't confuse them.
+
+| Command | Purpose | Format | Reversible? |
+|---|---|---|---|
+| `kno backup` | Restore Kno from this archive | Opaque tarball (SQLite + `data/` files) | yes — `kno restore` |
+| `kno restore` | Restore Kno from a backup | — | yes — back up first |
+| `kno wipe` | Delete user data by category | n/a — destructive | no (backup first) |
+| **`kno export`** | **Read your data outside Kno** | **Human-readable archive (markdown + JSON + CSV)** | n/a — read-only |
 
 ### Backup
 
-Full backup — SQLite snapshot + all of `data/`:
+Full — SQLite snapshot + all of `data/`:
 
 ```bash
 uv run kno backup
@@ -553,6 +562,57 @@ uv run kno restore ./kno-backup-2026-05-13-1700.tar.gz
 
 Safety: prompts before clobbering an existing `data/`. Run with `--force` to skip the prompt.
 
+### Export — human-readable
+
+Different from backup. **Backup is for restoring Kno; export is for reading your data outside Kno.** Use export to:
+- Archive your conversation history before leaving Kno (or just for posterity).
+- Grep your entire chat history with `ripgrep`.
+- Import facts/conversations into a different tool.
+- Hand your data to someone you trust (e.g. a researcher with permission).
+
+```bash
+# Everything, default tarball
+uv run kno export
+# → ./kno-export-2026-05-13-1700.tar.gz
+
+# Specific category
+uv run kno export --category conversations
+uv run kno export --category kb
+uv run kno export --category semantic-facts
+uv run kno export --category connections
+
+# As a directory rather than tarball (handy for grepping in place)
+uv run kno export --format directory --output ~/Documents/kno-export-may-13/
+```
+
+**What's in the archive:**
+
+```
+kno-export-2026-05-13-1700/
+├── README.md                                  ← machine-generated overview
+├── conversations/
+│   ├── 2026-05-12-name-introduction.md        ← one .md per thread
+│   ├── 2026-05-13-flow-coach-on-kno.md
+│   └── ...
+├── semantic_facts.json                        ← your facts
+├── kb_sources/
+│   └── github-dvhthomas-bitsby-me/
+│       ├── _meta.json                         ← repo + sha + ingest history
+│       └── chunks/                            ← reconstructed chunk text
+├── model_calls.csv                            ← full cost ledger
+├── feedback.json                              ← 👍/👎 with comments and run ids
+├── connections.json                           ← provider list — NEVER tokens
+├── workflows/                                 ← straight copy of data/workflows/
+├── agents/
+├── skills/
+└── evals/
+```
+
+**Privacy contract:**
+- `connections.json` contains `{provider, connection_label, scopes, created_at, last_used_at}` — never the encrypted token values themselves. Tokens stay in `service_connections` and never leave the SQLite DB.
+- Conversations include tool-call args (a `gh_velocity` call's `repo` and `since` are visible) but not decrypted secrets passed through env.
+- If you want to share an export with someone, you don't need to scrub tokens — they're not there.
+
 ### Wipe
 
 Delete user data by category. Each is hard-delete, not soft-archive.
@@ -573,7 +633,7 @@ uv run kno wipe --category all --confirm
 
 `--confirm` is required; without it, the command prints what it would delete and exits.
 
-**Pro tip:** `kno backup` immediately before any `kno wipe`. Always.
+**Pro tip:** before any `kno wipe`, run **both** `kno backup` (so you can restore if you change your mind) AND `kno export` (so you have a human-readable copy of what's about to be deleted).
 
 ---
 

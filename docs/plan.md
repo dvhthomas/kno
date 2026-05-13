@@ -185,7 +185,7 @@ Each skill is a 1–2 page markdown body the owner writes (or has Kno-the-design
 
 ### Phase 2 — Refinement + Deploy (1.5–2 weeks)
 
-**Goal:** Kno gets measurably better with use, and lives at a URL you can hit from anywhere.
+**Goal:** Kno gets measurably better with use, lives at a URL you can hit from anywhere, can be set up easily on a fresh machine, and lets you take your data with you if you ever leave.
 
 #### Deliverables
 
@@ -200,8 +200,10 @@ Each skill is a 1–2 page markdown body the owner writes (or has Kno-the-design
 9. **GitHub Actions**:
    - `.github/workflows/ci.yml` — lint + type + test + eval suite
    - `.github/workflows/deploy.yml` — push to `main` → `fly deploy`
-10. **README + ops doc**: clone + setup + run locally; Fly deploy; data deletion; key rotation; backup/restore; how to add a new workflow.
-11. **One-week real-usage validation**: Dylan uses Kno daily for 7 days. Daily review of `/admin/cost` (a small admin page summing `model_calls`); weekly retrospective of `/admin/refine` outcomes (which proposals were accepted, which rejected, which improved eval scores).
+10. **README + ops doc**: clone + setup + run locally; Fly deploy; data deletion; key rotation; backup/restore/export; how to add a new workflow.
+11. **`kno setup` interactive wizard** (per ADR-0018 §2.3 item 11): from a fresh clone, walks through every `.env` value with browser-opened provider consoles and verified paste-backs. ~15 minutes vs. ~30+ through the docs. Resumable.
+12. **`kno export` human-readable data portability** (per ADR-0018 §2.3 item 12): produces a markdown/JSON/CSV archive of conversations, semantic facts, KB content, cost ledger, feedback. Distinct from `kno backup` (which is opaque-restore). Per-category like `kno wipe`.
+13. **One-week real-usage validation**: Dylan uses Kno daily for 7 days. Daily review of `model_calls` ledger; weekly retrospective of `/admin/refine` outcomes. Includes one fresh-machine `kno setup` run and one `kno export` round-trip to exercise the new commands on real data.
 
 #### Verification (v1 release gate)
 
