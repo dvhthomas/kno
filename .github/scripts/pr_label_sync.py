@@ -35,3 +35,23 @@ def target_label(action: str, is_draft: bool) -> str | None:
     if action == "reopened":
         return "in-progress" if is_draft else "in-review"
     return None
+
+
+def transition_labels(
+    current: list[str], target: str, action: str, is_draft: bool
+) -> tuple[list[str], list[str]]:
+    """Return ``(to_remove, to_add)`` lifecycle label changes.
+
+    Two special cases:
+
+    - Already at target → no-op (``([], [])``).
+    - Opened as draft + issue already has a lifecycle label → no-op (don't
+      downgrade in-progress / in-review to shaping just because someone
+      opens a new draft PR referencing the same issue).
+    """
+    if action == "opened" and is_draft and any(l in current for l in LIFECYCLE):
+        return ([], [])
+    if target in current:
+        return ([], [])
+    to_remove = [l for l in LIFECYCLE if l != target and l in current]
+    return (to_remove, [target])

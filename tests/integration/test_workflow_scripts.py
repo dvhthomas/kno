@@ -71,3 +71,42 @@ class TestTargetLabel:
 
     def test_unknown_action_returns_none(self, pr_label_sync):
         assert pr_label_sync.target_label("closed", False) is None
+
+
+class TestTransitionLabels:
+    """`transition_labels(current, target, action, is_draft)` -> (to_remove, to_add).
+
+    Pure decision function — no I/O. Used by main() to compute API calls.
+    """
+
+    def test_already_target_is_noop(self, pr_label_sync):
+        assert pr_label_sync.transition_labels(
+            ["shaping", "enhancement"], "shaping", "opened", True
+        ) == ([], [])
+
+    def test_add_when_no_lifecycle_label(self, pr_label_sync):
+        assert pr_label_sync.transition_labels(
+            ["enhancement", "area:web"], "in-review", "ready_for_review", False
+        ) == ([], ["in-review"])
+
+    def test_swap_in_progress_to_in_review(self, pr_label_sync):
+        assert pr_label_sync.transition_labels(
+            ["in-progress", "enhancement"], "in-review", "ready_for_review", False
+        ) == (["in-progress"], ["in-review"])
+
+    def test_swap_in_review_back_to_in_progress(self, pr_label_sync):
+        # PR was ready, gets converted_to_draft → step back to in-progress.
+        assert pr_label_sync.transition_labels(
+            ["in-review"], "in-progress", "converted_to_draft", True
+        ) == (["in-review"], ["in-progress"])
+
+    def test_opened_draft_does_not_downgrade_existing_lifecycle(self, pr_label_sync):
+        # Issue already labeled in-progress; draft PR re-opens — don't reset to shaping.
+        assert pr_label_sync.transition_labels(
+            ["in-progress"], "shaping", "opened", True
+        ) == ([], [])
+
+    def test_opened_draft_applies_shaping_when_no_lifecycle(self, pr_label_sync):
+        assert pr_label_sync.transition_labels(
+            ["enhancement"], "shaping", "opened", True
+        ) == ([], ["shaping"])
