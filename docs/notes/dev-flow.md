@@ -145,7 +145,23 @@ gh issue edit <n> --remove-label blocked --add-label in-progress
 
 ### **In Progress → In Review** — mark PR ready for human review
 
+Per `AGENTS.md` → Strict pre-merge review: subagent review is required before flipping ready.
+
 ```bash
+# 1. Invoke the code-reviewer subagent against this PR's diff. The agent reads
+#    the changed files and posts a five-axis review. Address every Critical
+#    and Important finding before continuing.
+#    (Done from the agent harness via Agent(subagent_type="agent-skills:code-reviewer"),
+#    or invoke the equivalent slash command /agent-skills:review.)
+#
+#    Conditional: ALSO invoke security-auditor if the PR touches auth, secrets,
+#    OAuth, user-input parsing, or external API surface.
+#    ALSO invoke test-engineer if the PR adds or modifies tests.
+
+# 2. Post the findings as a PR comment (so reviewers see the audit trail):
+gh pr comment <pr#> --body-file /tmp/code-review-findings.md
+
+# 3. Flip the PR to ready.
 gh pr ready <pr#>
 gh issue edit <n> --remove-label in-progress --add-label in-review
 ```
@@ -241,6 +257,46 @@ Run this once after cloning. The hooks are written in POSIX `sh` (no bashisms) s
 ### What if a rule needs to relax temporarily
 
 Don't bypass — *change the rule* in `.github/workflows/pr-validate.yml`, open a PR, get it merged, then proceed. The whole point is that the rule is the boss; the agent isn't.
+
+---
+
+## Subagent review gates
+
+The YAML enforcement above catches *form* (branch name, labels, references). It cannot catch *substance* (logic errors, security holes, dead abstractions, missing edge cases). For substance, we invoke the [`addyosmani/agent-skills`](https://github.com/addyosmani/agent-skills) suite at specific lifecycle moments.
+
+### MUST-invoke (mandatory; rule break if skipped)
+
+| Lifecycle moment | Skill / agent | Status |
+|---|---|---|
+| Each TDD cycle | `/agent-skills:test` | In `AGENTS.md` Strict-TDD rule |
+| Draft PR → ready-for-review | `Agent(subagent_type="agent-skills:code-reviewer")` | In `AGENTS.md` Strict-pre-merge-review rule |
+| Before any deploy (`fly deploy`) | `/agent-skills:ship` | In `AGENTS.md` Strict-pre-deploy-review rule |
+
+### MUST-invoke (conditional on change content)
+
+| Condition | Additional agent |
+|---|---|
+| PR touches auth / sessions / secrets / OAuth / user input / external API surface | `Agent(subagent_type="agent-skills:security-auditor")` *(plus `/agent-skills:security-and-hardening` skill guidance)* |
+| PR adds or modifies test files | `Agent(subagent_type="agent-skills:test-engineer")` |
+
+### MAY-invoke (judgment-call helpers; not gated, but recommended)
+
+| When | Skill |
+|---|---|
+| Issue scope unclear at Shaping | `/agent-skills:spec` |
+| Non-trivial issue needs task breakdown | `/agent-skills:plan` |
+| Test fails unexpectedly / regression | `/agent-skills:debugging-and-error-recovery` |
+| Code works but is harder to read than it should be | `/agent-skills:code-simplification` |
+| Adding/changing public interfaces | `/agent-skills:api-and-interface-design` |
+| Recording an architectural decision | `/agent-skills:documentation-and-adrs` |
+
+### How review findings flow back to the PR
+
+1. Agent invokes the subagent.
+2. Subagent returns a structured five-axis review (Critical / Important / Suggestion).
+3. Agent posts the verbatim review as a PR comment so the audit trail is on the PR, not just in the agent transcript.
+4. Critical and Important findings must be addressed (more commits on the same branch) before the PR flips to ready.
+5. Suggestions are noted; addressing is judgment-call.
 
 ---
 
