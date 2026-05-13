@@ -1,0 +1,88 @@
+# Source of truth for non-lifecycle labels in dvhthomas/kno.
+#
+# Synced by .github/workflows/labels.yml on push to main when this file
+# changes. We pass `skip-delete: true` so the labeler never removes
+# labels managed by other tools.
+#
+# Lifecycle labels (in-progress, in-review, done) are NOT defined here.
+# They're managed by dvhthomas/project-label-sync via project-label-sync.yml,
+# driven from the GitHub Projects v2 board status field.
+
+# ─── Type (matches gh-velocity quality.categories) ───────────────────────────
+- name: bug
+  color: d73a4a
+  description: Something isn't working as documented
+
+- name: enhancement
+  color: a2eeef
+  description: New feature or behavior change
+
+- name: documentation
+  color: 0075ca
+  description: Docs, ADRs, comments, or examples
+
+- name: chore
+  color: ededed
+  description: Refactor, dep bump, CI tweak, build script — non-feature work
+
+# ─── Status / flags ──────────────────────────────────────────────────────────
+- name: blocked
+  color: f9a825
+  description: Cannot proceed until something else changes
+
+- name: release-blocker
+  color: b60205
+  description: Must be resolved before the next release
+
+- name: good first issue
+  color: 7057ff
+  description: Small, well-scoped — good starting point for a new contributor
+
+- name: wontfix
+  color: ffffff
+  description: Will not be addressed (with a documented reason in the issue)
+
+- name: duplicate
+  color: cfd3d7
+  description: Already covered by another issue or PR
+
+# ─── Area (per docs/spec.md §20) ─────────────────────────────────────────────
+- name: 'area:config'
+  color: 5319e7
+  description: Settings, env vars, secrets, .env handling
+
+- name: 'area:agent'
+  color: 5319e7
+  description: LangGraph runtime, workflow execution, prompt/skill loading
+
+- name: 'area:memory'
+  color: 5319e7
+  description: Working / semantic / episodic / procedural memory
+
+- name: 'area:kb'
+  color: 5319e7
+  description: Knowledge base — sources, ingest, retrieval, citations
+
+- name: 'area:auth'
+  color: 5319e7
+  description: OAuth providers, sessions, token vault, encryption
+
+- name: 'area:api'
+  color: 5319e7
+  description: FastAPI routes under /api/
+
+- name: 'area:web'
+  color: 5319e7
+  description: HTMX views, templates, static assets under /ui/
+
+- name: 'area:cli'
+  color: 5319e7
+  description: kno command-line entrypoint and subcommands
+
+- name: 'area:mcp'
+  color: 5319e7
+  description: MCP server scaffolding + specific tool implementations
+
+- name: 'area:infra'
+  color: 5319e7
+  description: Docker, Fly.io, CI/CD, observability

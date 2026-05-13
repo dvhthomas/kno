@@ -1,4 +1,4 @@
-# AGENTS.md — project rules
+# AGENTS.md
 
 ## Strict TDD: red → green → refactor
 
@@ -18,3 +18,9 @@ The cycle in brief — see `/agent-skills:test` for the full discipline:
 - Skipping the red demonstration ("here's the test I would have written, here's the code").
 - Bulk-implementing many features then making many tests pass at once.
 - Refactoring while tests are red.
+
+## See also
+
+- [`docs/notes/dev-flow.md`](docs/notes/dev-flow.md) — branching, labels, PR template, how to query flow data for this repo (`flowmetrics`, `gh-velocity`, Flow Coach).
+- [`docs/spec.md`](docs/spec.md) — full design, v1 scope per ADR-0018.
+- [`docs/plan.md`](docs/plan.md) / [`docs/tasks.md`](docs/tasks.md) — build plan + task list.

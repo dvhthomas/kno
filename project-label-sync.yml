@@ -1,0 +1,26 @@
+# Config for dvhthomas/project-label-sync — bridges a GitHub Projects v2
+# board's Status field with issue labels on this repo.
+#
+# How it works:
+#   - Move a card to "In progress" on the board → `in-progress` label appears
+#     on the issue within ~15 minutes (cron schedule in
+#     .github/workflows/label-sync.yml).
+#   - Add the `in-progress` label by hand → the card moves to "In progress"
+#     on the board on the next run.
+#
+# The label timestamps are what gh-velocity reads for cycle time — see
+# `.gh-velocity.yml`'s `lifecycle.in-progress.match` entry.
+#
+# ⚠ Edit the project-url below to point at the correct Projects v2 board
+# once you've created it. See docs/notes/dev-flow.md for the one-time
+# setup steps.
+
+project-url: https://github.com/users/dvhthomas/projects/REPLACE_ME
+field: Status
+mapping:
+  "In progress":
+    - in-progress
+  "In review":
+    - in-review
+  Done:
+    - done

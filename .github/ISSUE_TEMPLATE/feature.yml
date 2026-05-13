@@ -1,0 +1,40 @@
+name: Feature request
+description: Suggest a new feature or behavior change
+title: "[feat] "
+labels: ["enhancement"]
+body:
+  - type: input
+    id: summary
+    attributes:
+      label: One-line summary
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Why this matters
+      description: What problem does it solve? Who's affected?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed approach (rough is fine)
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Target scope
+      options:
+        - v1 (Kno-Lite — must fit ADR-0018)
+        - v1.5 (after first deploy + a week of real use)
+        - v2 (deferred until v1 reveals the need)
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

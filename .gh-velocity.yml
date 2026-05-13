@@ -1,0 +1,76 @@
+# gh-velocity configuration for dvhthomas/kno.
+#
+# Regenerate from scratch with:
+#   gh velocity config preflight -R dvhthomas/kno --write=.gh-velocity.yml
+#
+# This hand-written version aligns the categories with .github/labels.yml
+# and the lifecycle stages with project-label-sync.yml.
+
+scope:
+  query: "repo:dvhthomas/kno"
+
+# Issue / PR classification (first match wins; unmatched = "other").
+# Matchers: label:<name>, title:/<regex>/i
+quality:
+  categories:
+    - name: bug
+      match:
+        - "label:bug"
+        - "title:/^fix[\\(: ]/i"
+    - name: feature
+      match:
+        - "label:enhancement"
+        - "title:/^feat[\\(: ]/i"
+    - name: chore
+      match:
+        - "label:chore"
+        - "title:/^chore[\\(: ]/i"
+        - "title:/^refactor[\\(: ]/i"
+        - "title:/^build[\\(: ]/i"
+        - "title:/^ci[\\(: ]/i"
+    - name: docs
+      match:
+        - "label:documentation"
+        - "title:/^docs?[\\(: ]/i"
+  hotfix_window_hours: 72
+
+# Cycle time: issue strategy — labels are the immutable source of truth.
+cycle_time:
+  strategy: issue
+
+# Lifecycle stages: which labels mark "started" and "in review".
+lifecycle:
+  in-progress:
+    match: ["label:in-progress"]
+  in-review:
+    match: ["label:in-review"]
+
+# Effort scoring (used for velocity throughput aggregation).
+effort:
+  strategy: attribute
+  attribute:
+    - query: "label:enhancement"
+      value: 3
+    - query: "label:bug"
+      value: 2
+    - query: "label:documentation"
+      value: 1
+
+# Closing-PR commit-message patterns.
+commit_ref:
+  patterns: ["closes", "fixes", "resolves"]
+
+# Exclude bots from the metrics.
+exclude_users:
+  - "dependabot[bot]"
+  - "github-actions[bot]"
+
+# Minimum seconds between GitHub search-API calls (avoid secondary rate limits).
+api_throttle_seconds: 2
+
+# Projects v2 board for velocity reads.
+# Cycle time + WIP need GH_VELOCITY_TOKEN (classic PAT with `project` scope).
+# Update the URL once the board is created. See docs/notes/dev-flow.md.
+project:
+  url: "https://github.com/users/dvhthomas/projects/REPLACE_ME"
+  status_field: "Status"

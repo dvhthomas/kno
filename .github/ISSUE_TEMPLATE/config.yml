@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Read the docs first
+    url: https://github.com/dvhthomas/kno/blob/main/README.md
+    about: The README routes to the right doc for most questions.

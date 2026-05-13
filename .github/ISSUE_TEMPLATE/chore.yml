@@ -1,0 +1,17 @@
+name: Chore
+description: Refactor, dependency bump, CI tweak, docs cleanup, or other maintenance
+title: "[chore] "
+labels: ["chore"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What needs doing
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Why now
+      description: What does this unblock or improve? Optional but helpful.

@@ -1,0 +1,30 @@
+# Sync non-lifecycle labels from .github/labels.yml.
+#
+# Runs on push to main when labels.yml changes, plus on-demand via the
+# Actions tab. `skip-delete: true` prevents this workflow from removing
+# labels managed by other tools (notably project-label-sync's lifecycle
+# labels: in-progress, in-review, done).
+
+name: Sync labels
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/labels.yml']
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  labeler:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: crazy-max/ghaction-github-labeler@v5
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          yaml-file: .github/labels.yml
+          skip-delete: true
+          dry-run: ${{ github.event_name == 'pull_request' }}

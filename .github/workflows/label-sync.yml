@@ -1,0 +1,43 @@
+# Bidirectional sync between the GitHub Projects v2 board's Status field
+# and lifecycle labels on issues. Uses dvhthomas/project-label-sync.
+#
+# Setup (once):
+#   1. Create a classic personal access token with `project` + `repo` scopes:
+#      https://github.com/settings/tokens/new?scopes=project,repo&description=kno-project-label-sync
+#   2. Add it to the repo as the secret `PROJECT_PAT`.
+#   3. Edit project-label-sync.yml at repo root to point at the correct
+#      Projects v2 board URL.
+#
+# Until PROJECT_PAT is set the scheduled runs will fail with a clear auth
+# error and not silently sync nothing.
+
+name: Sync project board labels
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'  # every 15 minutes
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: 'Apply changes (false = preview only)'
+        type: boolean
+        default: false
+      verbose:
+        description: 'Show per-issue detail'
+        type: boolean
+        default: false
+
+permissions:
+  issues: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dvhthomas/project-label-sync@v0.1.2
+        with:
+          token: ${{ secrets.PROJECT_PAT }}
+          apply: ${{ github.event.inputs.apply || 'false' }}
+          verbose: ${{ github.event.inputs.verbose || 'false' }}
