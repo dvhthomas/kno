@@ -1,0 +1,21 @@
+name: PR review gate
+
+on:
+  pull_request:
+    types: [ready_for_review, synchronize]
+
+permissions:
+  pull-requests: read
+  issues: read
+
+jobs:
+  review-comment-present:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    steps:
+      - uses: actions/checkout@v6
+      - run: python3 .github/scripts/pr_review_gate.py
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}

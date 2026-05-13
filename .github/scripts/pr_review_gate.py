@@ -26,12 +26,12 @@ MARKER_RE = re.compile(r"^##\s+Code-reviewer subagent", re.MULTILINE)
 APPROVE_RE = re.compile(r"^\s*\*\*Verdict:\*\*\s*APPROVE\s*$", re.MULTILINE | re.IGNORECASE)
 
 
-def find_review_comment(comments: list[dict]) -> dict | None:
+def find_review_comment(comments: list[dict[str, object]]) -> dict[str, object] | None:
     """Return the latest comment matching the marker, or None."""
-    matches = [c for c in comments if MARKER_RE.search(c.get("body") or "")]
+    matches = [c for c in comments if MARKER_RE.search(str(c.get("body") or ""))]
     if not matches:
         return None
-    return max(matches, key=lambda c: c["created_at"])
+    return max(matches, key=lambda c: str(c["created_at"]))
 
 
 def is_approved(body: str) -> bool:
@@ -40,7 +40,7 @@ def is_approved(body: str) -> bool:
 
 
 def _gh(args: list[str]) -> str:
-    res = subprocess.run(["gh"] + args, capture_output=True, text=True, check=True)
+    res = subprocess.run(["gh", *args], capture_output=True, text=True, check=True)
     return res.stdout
 
 
@@ -55,14 +55,14 @@ def main() -> int:
     if review is None:
         print(
             "No code-reviewer subagent comment found. Per AGENTS.md → "
-            'Strict pre-merge review: invoke `Agent(subagent_type='
+            "Strict pre-merge review: invoke `Agent(subagent_type="
             '"agent-skills:code-reviewer")` and post findings as a PR '
             "comment starting with `## Code-reviewer subagent`.",
             file=sys.stderr,
         )
         return 1
 
-    if not is_approved(review["body"]):
+    if not is_approved(str(review["body"])):
         print(
             f"Latest code-reviewer comment ({review.get('html_url', '(unknown url)')}) "
             "does not contain `**Verdict:** APPROVE` on its own line. "

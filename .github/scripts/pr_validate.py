@@ -22,9 +22,7 @@ import re
 import subprocess
 import sys
 
-BRANCH_RE = re.compile(
-    r"^(feat|fix|chore|docs|refactor|ci|build|test)/[0-9]+-[a-z0-9-]+$"
-)
+BRANCH_RE = re.compile(r"^(feat|fix|chore|docs|refactor|ci|build|test)/[0-9]+-[a-z0-9-]+$")
 CLOSES_RE = re.compile(r"(?:Closes|Fixes|Resolves)\s+#(\d+)", re.IGNORECASE)
 
 TYPE_LABELS = frozenset({"enhancement", "bug", "documentation", "chore"})
@@ -50,12 +48,12 @@ def find_closes_ref(body: str) -> int | None:
 def validate_issue_labels(labels: list[str], issue_num: int) -> list[str]:
     """Return failures for missing type / area labels on the linked issue."""
     failures: list[str] = []
-    if not any(l in TYPE_LABELS for l in labels):
+    if not any(label in TYPE_LABELS for label in labels):
         failures.append(
             f"Linked issue #{issue_num} lacks a type label. "
             "Add one of: enhancement, bug, documentation, chore."
         )
-    if not any(l.startswith("area:") for l in labels):
+    if not any(label.startswith("area:") for label in labels):
         failures.append(
             f"Linked issue #{issue_num} lacks an `area:*` label. "
             "See .github/labels.yml for the catalogue."
@@ -64,7 +62,7 @@ def validate_issue_labels(labels: list[str], issue_num: int) -> list[str]:
 
 
 def _gh(args: list[str]) -> str:
-    res = subprocess.run(["gh"] + args, capture_output=True, text=True, check=True)
+    res = subprocess.run(["gh", *args], capture_output=True, text=True, check=True)
     return res.stdout
 
 
@@ -84,10 +82,14 @@ def main() -> int:
         )
     else:
         try:
-            raw = _gh([
-                "api", f"/repos/{repo}/issues/{issue_num}",
-                "--jq", "[.labels[].name]",
-            ])
+            raw = _gh(
+                [
+                    "api",
+                    f"/repos/{repo}/issues/{issue_num}",
+                    "--jq",
+                    "[.labels[].name]",
+                ]
+            )
             labels = json.loads(raw) if raw.strip() else []
             failures.extend(validate_issue_labels(labels, issue_num))
         except subprocess.CalledProcessError as e:

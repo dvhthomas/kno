@@ -53,17 +53,17 @@ def transition_labels(
       downgrade in-progress / in-review to shaping just because someone
       opens a new draft PR referencing the same issue).
     """
-    if action == "opened" and is_draft and any(l in current for l in LIFECYCLE):
+    if action == "opened" and is_draft and any(label in current for label in LIFECYCLE):
         return ([], [])
     if target in current:
         return ([], [])
-    to_remove = [l for l in LIFECYCLE if l != target and l in current]
+    to_remove = [label for label in LIFECYCLE if label != target and label in current]
     return (to_remove, [target])
 
 
 def _gh(args: list[str]) -> str:
     """Run gh and return stdout. Caller handles non-zero exit."""
-    res = subprocess.run(["gh"] + args, capture_output=True, text=True, check=True)
+    res = subprocess.run(["gh", *args], capture_output=True, text=True, check=True)
     return res.stdout
 
 
@@ -102,8 +102,9 @@ def main() -> int:
             _gh(["api", "-X", "DELETE", f"/repos/{repo}/issues/{n}/labels/{label}"])
             print(f"Removed `{label}` from #{n}")
         for label in to_add:
-            _gh(["api", "-X", "POST", f"/repos/{repo}/issues/{n}/labels",
-                 "-f", f"labels[]={label}"])
+            _gh(
+                ["api", "-X", "POST", f"/repos/{repo}/issues/{n}/labels", "-f", f"labels[]={label}"]
+            )
             print(f"Added `{label}` to #{n}")
     return 0
 

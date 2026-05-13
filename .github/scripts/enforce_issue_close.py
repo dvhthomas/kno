@@ -49,7 +49,7 @@ query($owner: String!, $repo: String!, $number: Int!) {
 """
 
 
-def is_auto_closed_by_pr_or_commit(closer: dict | None) -> bool:
+def is_auto_closed_by_pr_or_commit(closer: dict[str, object] | None) -> bool:
     """True iff the closer is a merged PR or a Commit."""
     if closer is None:
         return False
@@ -61,35 +61,43 @@ def is_auto_closed_by_pr_or_commit(closer: dict | None) -> bool:
     return False
 
 
-def recent_comments_have_reference(comments: list[dict]) -> bool:
+def recent_comments_have_reference(comments: list[dict[str, object]]) -> bool:
     """True iff any of the last 2 comments contains `#N` or a 7-40 hex SHA."""
     for c in comments[-2:]:
-        if REF_RE.search(c.get("body") or ""):
+        if REF_RE.search(str(c.get("body") or "")):
             return True
     return False
 
 
 def _gh(args: list[str], input_text: str | None = None) -> str:
     res = subprocess.run(
-        ["gh"] + args, capture_output=True, text=True, check=True, input=input_text
+        ["gh", *args], capture_output=True, text=True, check=True, input=input_text
     )
     return res.stdout
 
 
-def _gh_graphql_closer(repo: str, issue_num: int) -> dict | None:
+def _gh_graphql_closer(repo: str, issue_num: int) -> dict[str, object] | None:
     owner, name = repo.split("/")
-    raw = _gh([
-        "api", "graphql",
-        "-f", f"query={GRAPHQL_CLOSER_QUERY}",
-        "-F", f"owner={owner}",
-        "-F", f"repo={name}",
-        "-F", f"number={issue_num}",
-    ])
+    raw = _gh(
+        [
+            "api",
+            "graphql",
+            "-f",
+            f"query={GRAPHQL_CLOSER_QUERY}",
+            "-F",
+            f"owner={owner}",
+            "-F",
+            f"repo={name}",
+            "-F",
+            f"number={issue_num}",
+        ]
+    )
     data = json.loads(raw)
     nodes = data["data"]["repository"]["issue"]["timelineItems"]["nodes"]
     if not nodes:
         return None
-    return nodes[-1].get("closer")
+    closer = nodes[-1].get("closer")
+    return closer if isinstance(closer, dict) else None
 
 
 def main() -> int:
@@ -98,24 +106,35 @@ def main() -> int:
 
     closer = _gh_graphql_closer(repo, issue_num)
     if is_auto_closed_by_pr_or_commit(closer):
+        assert closer is not None  # narrowed by is_auto_closed... above
         t = closer["__typename"]
         ident = closer.get("number") if t == "PullRequest" else closer.get("abbreviatedOid")
         print(f"Auto-closed by {t} {ident} — OK.")
         return 0
 
-    raw = _gh([
-        "api", f"/repos/{repo}/issues/{issue_num}/comments", "--paginate",
-    ])
+    raw = _gh(
+        [
+            "api",
+            f"/repos/{repo}/issues/{issue_num}/comments",
+            "--paginate",
+        ]
+    )
     comments = json.loads(raw) if raw.strip() else []
     if recent_comments_have_reference(comments):
         print("Reference found in recent comments — OK.")
         return 0
 
     print(f"Issue #{issue_num} closed without reference. Reopening.")
-    _gh([
-        "api", "-X", "PATCH", f"/repos/{repo}/issues/{issue_num}",
-        "-f", "state=open",
-    ])
+    _gh(
+        [
+            "api",
+            "-X",
+            "PATCH",
+            f"/repos/{repo}/issues/{issue_num}",
+            "-f",
+            "state=open",
+        ]
+    )
 
     body = (
         "🚩 **Closed without a reference — reopening.**\n\n"
@@ -126,14 +145,20 @@ def main() -> int:
         f"2. **Auto-close via commit** — include `Closes #{issue_num}` in a commit message pushed to `main`.\n"
         "3. **Manual close with a comment naming the artifact**:\n"
         "   ```bash\n"
-        f"   gh issue close {issue_num} --reason \"not planned\" \\\n"
-        "       --comment \"Duplicate of #M.\"   # or: \"Wontfix — see PR #M.\" / \"Superseded by commit abc1234.\"\n"
+        f'   gh issue close {issue_num} --reason "not planned" \\\n'
+        '       --comment "Duplicate of #M."   # or: "Wontfix — see PR #M." / "Superseded by commit abc1234."\n'
         "   ```\n"
     )
-    _gh([
-        "api", "-X", "POST", f"/repos/{repo}/issues/{issue_num}/comments",
-        "-f", f"body={body}",
-    ])
+    _gh(
+        [
+            "api",
+            "-X",
+            "POST",
+            f"/repos/{repo}/issues/{issue_num}/comments",
+            "-f",
+            f"body={body}",
+        ]
+    )
     return 0
 
 

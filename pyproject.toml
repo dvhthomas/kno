@@ -44,9 +44,9 @@ dev = [
 #   `uv run poe <task>` (works out of the box after `uv sync`)
 #   or `poe <task>` after `uv tool install poethepoet`
 [tool.poe.tasks]
-lint      = "ruff check src tests"
-format    = "ruff format src tests"
-typecheck = "mypy src tests"
+lint      = "ruff check src tests .github/scripts"
+format    = "ruff format src tests .github/scripts"
+typecheck = "mypy src tests .github/scripts"
 
 # Default `test` runs unit only for fast TDD feedback (~0.3s).
 # Use `poe test-all` before pushing, or `poe test-fast` to rerun only failures.
@@ -76,6 +76,7 @@ select = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["N802"]  # allow non-snake_case test fn names if needed
+".github/scripts/enforce_issue_close.py" = ["E501"]  # natural-language comment-body strings; reflow hurts readability
 
 # ─── mypy ─────────────────────────────────────────────────────────────────────
 [tool.mypy]
