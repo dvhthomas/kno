@@ -92,6 +92,8 @@ Every state has a documented inbound + outbound transition. No dangling states.
 
 PRs are looser: a PR may be merged or closed without a `Closes #` reference, but that's rare — most PRs address a tracked issue, and the PR template already includes the line.
 
+**Enforced by [`.github/workflows/enforce-issue-close.yml`](../../.github/workflows/enforce-issue-close.yml).** Fires on every issue close, detects auto-close via `commit_id` on the timeline event, otherwise scans the last 2 comments for a `#N` or commit-SHA reference. If neither path is satisfied, the workflow reopens the issue and posts a comment explaining the rule with the exact `gh` command to fix it.
+
 ### Daily flow (the rest of this section)
 
 `project-label-sync` is bidirectional — the `gh` commands below drive the entire flow without touching the board UI; the board moves to match within 15 minutes. (Or drag the card on the board; the labels follow.)

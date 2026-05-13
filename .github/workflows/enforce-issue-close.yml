@@ -1,0 +1,91 @@
+# Enforce the closing rule from docs/notes/dev-flow.md.
+#
+# Every issue close must reference a PR, commit, or related issue. Three paths
+# are valid:
+#   1. Auto-close via `Closes #N` (or Fixes/Resolves) in a merged PR or in any
+#      commit pushed to main. The "closed" timeline event has `commit_id` set
+#      in both cases — that's how we detect this path.
+#   2. Manual close with a comment naming a PR (#N), commit (≥7 hex chars), or
+#      related issue (#N). We check the last 2 comments.
+#   3. Workflow-initiated close (bot is the sender) — skipped to avoid loops.
+#
+# Otherwise: reopen the issue and post a comment explaining the rule with
+# example commands the closer can use to fix it.
+
+name: Enforce issue close reference
+
+on:
+  issues:
+    types: [closed]
+
+permissions:
+  issues: write
+
+jobs:
+  enforce:
+    runs-on: ubuntu-latest
+    # Skip when a bot (including this very workflow) closed the issue.
+    if: github.event.sender.type != 'Bot'
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const repo = context.repo;
+            const issueNumber = context.payload.issue.number;
+
+            // 1) Auto-close via PR merge or direct commit?
+            //    Both populate `commit_id` on the "closed" timeline event.
+            const events = await github.paginate(
+              github.rest.issues.listEventsForTimeline,
+              { ...repo, issue_number: issueNumber, per_page: 100 }
+            );
+            const closedEvent = [...events].reverse().find(e => e.event === "closed");
+            if (closedEvent?.commit_id) {
+              core.info(`Auto-closed by commit ${closedEvent.commit_id} — OK.`);
+              return;
+            }
+
+            // 2) Manual close: look for a PR (#N), commit SHA (≥7 hex chars),
+            //    or related issue (#N) reference in the last 2 comments.
+            const refPattern = /(#\d+|\b[0-9a-f]{7,40}\b)/;
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              { ...repo, issue_number: issueNumber, per_page: 100 }
+            );
+            const recent = comments.slice(-2);
+            const hasRef = recent.some(c => refPattern.test(c.body || ""));
+            if (hasRef) {
+              core.info("Reference found in recent comments — OK.");
+              return;
+            }
+
+            // 3) No reference found. Reopen and explain.
+            core.warning(`Issue #${issueNumber} closed without a reference. Reopening.`);
+
+            await github.rest.issues.update({
+              ...repo,
+              issue_number: issueNumber,
+              state: "open",
+            });
+
+            const body = [
+              "🚩 **Closed without a reference — reopening.**",
+              "",
+              "Per [`docs/notes/dev-flow.md` → Closing rule](../blob/main/docs/notes/dev-flow.md#closing-rule), every issue close must cite a **PR** (`#N`), **commit SHA** (≥7 chars), or **related issue** (`#N`).",
+              "",
+              "**Three patterns that satisfy the rule:**",
+              "",
+              `1. **Auto-close via PR merge** — include \`Closes #${issueNumber}\` in a PR body, then merge.`,
+              `2. **Auto-close via commit** — include \`Closes #${issueNumber}\` in a commit message pushed to \`main\`.`,
+              "3. **Manual close with a comment naming the artifact**:",
+              "   ```bash",
+              `   gh issue close ${issueNumber} --reason "not planned" \\`,
+              "       --comment \"Duplicate of #M.\"   # or: \"Wontfix — see PR #M.\" / \"Superseded by commit abc1234.\"",
+              "   ```",
+            ].join("\n");
+
+            await github.rest.issues.createComment({
+              ...repo,
+              issue_number: issueNumber,
+              body,
+            });
