@@ -1,101 +1,104 @@
-# Kno Ops Manual — deployment and platform operations
+# Kno Ops Manual — deployment milestones
 
 > **Audience.** You, deploying Kno to a server (Fly.io is the v1 target) and operating it over time.
 >
-> **Scope.** Things that happen **outside the app** — the platform setup, the deploy pipeline, the off-machine storage, the DNS — that the in-app web UI (the setup wizard, `/ui/connections`, etc.) can't do for itself.
+> **Structure.** This doc is organized as **deploy milestones**, not topics. Each milestone has an explicit pre-requisite list (build tasks that must be done first; OAuth credentials you need) and an explicit verifiable result. Read top-to-bottom; stop wherever you want — every milestone leaves you with a working deployed thing.
 >
 > **Not in this manual.**
-> - **Local setup, first boot, first login, first chat** → `docs/notes/setup/local-quickstart.md`. (Post-Phase-2, the setup wizard at `/setup` is the canonical setup surface; the local-quickstart doc is the manual fallback.)
-> - **Backup, restore, wipe, export, key rotation** → `docs/notes/data-management.md`. (CLI commands; the procedures live with the data, not the deploy.)
-> - **Spec, plan, ADRs** → `docs/spec.md`, `docs/plan.md`, `docs/adr/`.
+> - Local setup (running Kno on your laptop) → [`docs/notes/setup/local-quickstart.md`](notes/setup/local-quickstart.md)
+> - Backup / restore / wipe / export / key rotation → [`docs/notes/data-management.md`](notes/data-management.md)
+> - Spec, plan, ADRs → [`docs/spec.md`](spec.md), [`docs/plan.md`](plan.md), [`docs/adr/`](adr/)
 >
-> **The split rationale.** The web app's setup wizard *is* the canonical local-setup documentation. Duplicating it in a static doc creates drift and gives doc-clarity validation two sources of truth. So `ops.md` is small on purpose — only the truly out-of-app, platform-level concerns.
+> **If you've never built Kno before.** Start at the bottom of [`docs/plan.md`](plan.md) (Pre-flight + Phase 0). You can't deploy zero code; this doc assumes Phase 0 has at least begun.
 
 ---
 
 ## Contents
 
-1. [Deploying to Fly.io](#1-deploying-to-flyio)
-2. [GitHub Actions deploy pipeline](#2-github-actions-deploy-pipeline)
-3. [Off-machine backup with object storage (v2)](#3-off-machine-backup-with-object-storage-v2)
-4. [Custom domain and TLS](#4-custom-domain-and-tls)
-5. [Operational tips — logs, ssh, monitoring](#5-operational-tips--logs-ssh-monitoring)
-6. [Platform troubleshooting](#6-platform-troubleshooting)
-7. [Update history](#7-update-history)
+0. [Before any deploy: build pre-requisites](#0-before-any-deploy)
+1. [Milestone 1 — Hello, Kno: minimum-viable deploy](#1-milestone-1--hello-kno)
+2. [Milestone 2 — Add Google sign-in](#2-milestone-2--add-google-sign-in)
+3. [Milestone 3 — Add Anthropic + chat](#3-milestone-3--add-anthropic--chat)
+4. [Milestone 4 — Add GitHub + Flow Coach + KB-QA (full Kno-Lite)](#4-milestone-4--full-kno-lite)
+5. [GitHub Actions CI + auto-deploy](#5-github-actions-ci--auto-deploy)
+6. [Off-machine backup with object storage (v2)](#6-off-machine-backup-with-object-storage-v2)
+7. [Custom domain and TLS](#7-custom-domain-and-tls)
+8. [Operational tips — logs, ssh, monitoring](#8-operational-tips--logs-ssh-monitoring)
+9. [Platform troubleshooting](#9-platform-troubleshooting)
+10. [Update history](#10-update-history)
 
 ---
 
-## 1. Deploying to Fly.io
+## 0. Before any deploy
 
-### Prerequisites
+**You can't deploy zero code.** The minimum-viable Kno requires *some* Phase 0 work to exist before any `fly deploy` makes sense.
 
-- A working local Kno (per `docs/notes/setup/local-quickstart.md`). Don't deploy something you haven't run locally.
-- A Fly.io account.
-- `flyctl` installed: `brew install flyctl` (or platform equivalent).
+### Pre-flight (your machine, no code yet)
 
-### One-time setup
+These don't depend on any Kno code. You can do them while Phase 0 is being built or before.
+
+| Task | Source |
+|---|---|
+| P0-pre.2: install `uv` (Python 3.12), `ollama`, `flyctl`, `git` | `docs/tasks.md` |
+| P0-pre.3: provision a Fly.io account | https://fly.io/ |
+
+Note: **no OAuth credentials, no Anthropic key, no Ollama pulls** are needed yet for Milestone 1. Those come in later milestones.
+
+### Build tasks required for Milestone 1
+
+| Task | Status | What it produces |
+|---|---|---|
+| `tasks.md` 0.1 — project skeleton | needed | `pyproject.toml`, `Makefile`, `src/kno/__init__.py`, `tests/conftest.py` |
+| `tasks.md` 0.2 — config layer | needed | `kno.config.Settings`; **must boot cleanly with no secrets set** (setup-mode style; missing-secrets becomes `{provider}: not_configured` in `/api/health`, not a crash) |
+| `tasks.md` 0.10 — web shell + health | needed | `GET /api/health`; `GET /ui/` placeholder |
+| `tasks.md` 2.7 — Dockerfile + `fly.toml` (minimal) | pulled forward | A multi-stage Dockerfile + a `fly.toml` with the volume mount |
+
+That's ~4 tasks. ~half a day of focused build work before the first Fly deploy is possible.
+
+> **Phase 0 constraint:** Task 0.2 (config layer) needs to be lenient about missing secrets, **not fail-fast**. The "fail-fast on missing required env vars" pattern only applies once the setup wizard exists (Phase 2). Pre-wizard, the server boots, reports `not_configured`, and shows a placeholder page. This is what makes Milestone 1 possible.
+
+---
+
+## 1. Milestone 1 — Hello, Kno
+
+**Goal.** Deploy an empty Kno scaffold to Fly. No login, no chat, no KB. Just a `/api/health` that responds and a `/ui/` placeholder. Purpose: **validate the deploy pipeline works** before adding anything that depends on it.
+
+### Pre-requisites
+
+- Pre-flight done: `flyctl` installed, Fly account ready.
+- Build tasks 0.1, 0.2, 0.10, and minimal 2.7 done (per §0).
+- **No OAuth credentials required.** **No Anthropic key required.**
+
+### Steps
 
 ```bash
 # 1. Authenticate flyctl
 fly auth login                  # opens browser
 
-# 2. Initialize the Fly app from your local kno/ checkout
+# 2. Initialize the Fly app
 cd kno
 fly launch --no-deploy
 ```
 
-`fly launch` will prompt for:
+`fly launch` prompts:
 
-- **App name.** Pick something memorable; this becomes `<name>.fly.dev`. E.g. `kno-dylan`.
-- **Region.** Closest to you for latency.
-- **Postgres?** No.
-- **Redis?** No.
-- **Deploy now?** Decline. We need to provision a volume and set secrets first.
+- **App name** → memorable; this becomes `<name>.fly.dev` (e.g. `kno-dylan`). Remember it.
+- **Region** → closest for latency.
+- **Postgres?** → No.
+- **Redis?** → No.
+- **Deploy now?** → No (we still need the volume).
 
-`fly.toml` is now generated. Commit it.
+`fly.toml` is generated. Commit it.
 
 ```bash
 # 3. Create the persistent volume for data/
 fly volumes create kno_data --size 1 --region <your-region>
 ```
 
-`fly.toml` already references this mount path (`/data` inside the container). One machine, one volume.
-
-### Set Fly secrets
-
-You **cannot** reuse your local `.env` verbatim — the prod deployment needs its own credentials. Specifically:
-
-- **GitHub OAuth App** must be a separate prod registration (callback URL differs; see `docs/notes/setup/local-quickstart.md` §A.4).
-- **`KNO_TOKEN_ENC_KEY`** and **`KNO_SESSION_SECRET`** should be fresh values (not your local ones — local + prod sharing encryption keys is poor hygiene).
-- **`KNO_ANTHROPIC_API_KEY`** — recommend a separate key dedicated to prod for cleaner billing/spend caps.
-- **`KNO_GOOGLE_CLIENT_ID/SECRET`** — can reuse local (Google supports multiple redirect URIs per client; you already registered both in `docs/notes/setup/local-quickstart.md` §A.3 step 15).
-
-Set them all:
-
 ```bash
-fly secrets set \
-  KNO_ADMIN_EMAIL=you@example.com \
-  KNO_TOKEN_ENC_KEY=<fresh Fernet key> \
-  KNO_SESSION_SECRET=<fresh urlsafe random> \
-  KNO_GOOGLE_CLIENT_ID=<from local, fine to reuse> \
-  KNO_GOOGLE_CLIENT_SECRET=<from local, fine to reuse> \
-  KNO_GITHUB_CLIENT_ID=<from PROD OAuth App, not local> \
-  KNO_GITHUB_CLIENT_SECRET=<from PROD OAuth App, not local> \
-  KNO_ANTHROPIC_API_KEY=<fresh prod key>
-```
-
-**Ollama notes.**
-- Fly's standard machines don't have GPUs and aren't great for Ollama. The prod deploy uses Anthropic only; the Anthropic-outage fallback degrades to "service unavailable" rather than "Ollama fallback."
-- If you really want Ollama in prod, a separate Fly machine with `nvidia-flag` or a dedicated GPU host is needed. Beyond v1 scope.
-- For now, set Ollama env vars to empty/unset; the server boots without them but the fallback chat model probe will report `chat: not_configured`.
-
-### First deploy
-
-```bash
+# 4. Deploy
 fly deploy
 ```
-
-This builds the multi-stage Dockerfile in the repo, pushes the image, and starts the machine.
 
 ### Verify
 
@@ -107,30 +110,161 @@ Expected:
 
 ```json
 {
-  "ok": true,
+  "ok": false,
   "version": "<sha>",
   "db": "ok",
-  "anthropic": "ok",
-  "ollama": "not_configured"
+  "anthropic": "not_configured",
+  "ollama": "not_configured",
+  "google_oauth": "not_configured",
+  "github_oauth": "not_configured"
 }
 ```
 
-Then open `https://<your-app>.fly.dev/ui/login` in a browser and log in via Google.
+`ok: false` is **expected and correct** at this milestone — Kno is alive but nothing is configured. `db: ok` means the volume mounted and migrations ran. `not_configured` everywhere else means we'll fix those in later milestones.
 
-### Setup wizard on Fly
+```bash
+# Also check the placeholder page
+open https://<your-app>.fly.dev/ui/
+```
 
-Post-Phase-2: when you first deploy a Fly machine with no `.env`-equivalent secrets, the setup mode kicks in. **However**, the wizard's "write `.env`" step doesn't make sense in a container — `.env` would be wiped on next deploy. Two options:
+You should see a placeholder ("Kno is running; setup not yet completed").
 
-- **Run the wizard locally first** with `KNO_DEPLOY_TARGET=fly` set. The wizard's final step emits a single `fly secrets set ...` shell command containing all the values; copy and run it.
-- **Or set all the secrets via `fly secrets set` directly**, as documented above. Skip the wizard for Fly entirely.
-
-Recommended: the first approach. The wizard's live validation is still useful; the output is just shell commands instead of a `.env` write.
+**You're done with Milestone 1.** The deploy pipeline works. Continue to Milestone 2 only when build Tasks 0.3/0.4/0.5/0.9 are done (DB tables, Google OAuth, sessions, token vault).
 
 ---
 
-## 2. GitHub Actions deploy pipeline
+## 2. Milestone 2 — Add Google sign-in
 
-The `.github/workflows/deploy.yml` workflow auto-deploys on `main` push after CI passes.
+**Goal.** `/ui/login` works. You can sign in with Google and reach `/ui/` showing your email.
+
+### Pre-requisites
+
+- Milestone 1 deployed.
+- Build tasks 0.3, 0.4, 0.5, 0.9 done (per `docs/tasks.md`): DB migrations, Google OAuth provider, sessions, token vault.
+- **A prod Google OAuth client registered** (callback URL = `https://<your-app>.fly.dev/api/auth/google/callback`). See [`docs/notes/setup/local-quickstart.md` §A.3](notes/setup/local-quickstart.md#a3-google-oauth-client) for the click-by-click — Google supports multiple redirect URIs per client, so you can reuse your local-dev client by adding the Fly callback URL to it.
+
+### Steps
+
+```bash
+# 1. Generate prod-only secrets (do NOT reuse local values).
+KEK=$(uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+SESSION=$(uv run python -c "import secrets; print(secrets.token_urlsafe(32))")
+
+# 2. Set Fly secrets
+fly secrets set \
+  KNO_ADMIN_EMAIL=you@example.com \
+  KNO_TOKEN_ENC_KEY="$KEK" \
+  KNO_SESSION_SECRET="$SESSION" \
+  KNO_GOOGLE_CLIENT_ID=<from your Google OAuth client> \
+  KNO_GOOGLE_CLIENT_SECRET=<from your Google OAuth client>
+
+# 3. Deploy (Fly redeploys automatically when secrets change, but explicit is clearer)
+fly deploy
+```
+
+### Verify
+
+```bash
+curl -s https://<your-app>.fly.dev/api/health | jq .
+# google_oauth should now be "ok"
+```
+
+Open `https://<your-app>.fly.dev/ui/login` in a browser. Sign in with your Google account (must match `KNO_ADMIN_EMAIL`). You should land on `/ui/` with your email shown.
+
+If "Access blocked" appears: your Google account is not in the OAuth client's Test Users list. See [`docs/notes/setup/local-quickstart.md` §A.3 step 8](notes/setup/local-quickstart.md#a3-google-oauth-client).
+
+**You're done with Milestone 2.** Continue to Milestone 3 when Phase 0 chat tasks (0.6, 0.8, 0.11–0.22) are done.
+
+---
+
+## 3. Milestone 3 — Add Anthropic + chat
+
+**Goal.** You can chat with Kno (the default workflow) signed in. No KB, no Flow Coach — just default chat with persistent memory.
+
+### Pre-requisites
+
+- Milestone 2 deployed.
+- Phase 0 chat tasks done: 0.6 (LiteLLM), 0.8 (LangGraph state + checkpointer), 0.11/0.12 (skill + workflow loaders), 0.13–0.16 (memory + chat workflow runtime), 0.17 (reliability checks), 0.18 (default workflow seed), 0.19/0.20 (chat API + UI), 0.21 (feedback), 0.22 (runs view).
+- An Anthropic API key (separate from local for clean spend tracking is recommended).
+
+### Steps
+
+```bash
+# 1. Set Anthropic key
+fly secrets set KNO_ANTHROPIC_API_KEY=sk-ant-api03-...
+
+# 2. Deploy
+fly deploy
+```
+
+### Verify
+
+```bash
+curl -s https://<your-app>.fly.dev/api/health | jq .
+# anthropic should now be "ok"
+```
+
+Sign in. Visit `/ui/chat`. Pick the `default` workflow. Type "Hey Kno, my name is Dylan. Remember that."
+
+You should see streaming output. Then restart the Fly machine (`fly machine restart <id>`), sign back in, click yesterday's thread, type "Who am I?" — response should say "You're Dylan."
+
+### Ollama on Fly
+
+Skip. Fly's standard machines don't have GPUs and aren't appropriate for Ollama models. The Anthropic-outage fallback degrades to "service unavailable" in prod rather than the Ollama fallback that works locally. (v2 might address this with a separate GPU machine.)
+
+For now: `KNO_OLLAMA_BASE_URL` stays unset on Fly. The `/api/health` will continue to show `ollama: not_configured`; this is fine.
+
+**You're done with Milestone 3.** Continue to Milestone 4 when Phase 1 tasks are done (GitHub OAuth + flowmetrics MCP + KB ingestion + librarian/vacanti workflows).
+
+---
+
+## 4. Milestone 4 — Full Kno-Lite
+
+**Goal.** Full Kno-Lite: signed-in chat + Flow Coach + KB-QA + connections page.
+
+### Pre-requisites
+
+- Milestone 3 deployed.
+- Phase 1 tasks done: 1.1–1.16 (KB ingestion + retrieval, github + flowmetrics MCP servers, seed workflows for librarian + vacanti, approval gate, eval suite, prompt-injection battery).
+- **A prod GitHub OAuth App registered** (callback URL = `https://<your-app>.fly.dev/api/auth/github/callback`). GitHub OAuth Apps allow only one callback URL — this **must** be a separate registration from your local-dev App. See [`docs/notes/setup/local-quickstart.md` §A.4](notes/setup/local-quickstart.md#a4-github-oauth-apps).
+
+### Steps
+
+```bash
+# 1. Set GitHub OAuth secrets (from the PROD OAuth App, not local)
+fly secrets set \
+  KNO_GITHUB_CLIENT_ID=<prod app client ID> \
+  KNO_GITHUB_CLIENT_SECRET=<prod app client secret>
+
+# 2. Deploy
+fly deploy
+```
+
+### Verify
+
+```bash
+curl -s https://<your-app>.fly.dev/api/health | jq .
+# All providers should now be "ok" (except ollama, which stays not_configured on Fly)
+```
+
+Sign in. Visit `/ui/connections`. Click "Connect with GitHub" → authorize → return to `/ui/connections` showing GitHub connected.
+
+Visit `/ui/kb`. Click "Sync" on a Hugo source repo (e.g. `dvhthomas/bitsby-me`). Wait for chunks to index.
+
+Visit `/ui/chat`. Pick `kb-qa` → ask a question about a post → get a cited answer. Pick `flow-coach` → ask "how is dvhthomas/kno doing this month?" → get a Vacanti-style summary.
+
+**You're done with Milestone 4.** This is full Kno-Lite deployed.
+
+---
+
+## 5. GitHub Actions CI + auto-deploy
+
+Optional but recommended. Replaces manual `fly deploy` with push-to-main → deploy.
+
+### Pre-requisites
+
+- Any of Milestones 1–4 deployed.
+- `.github/workflows/ci.yml` and `.github/workflows/deploy.yml` exist in the repo (Phase 2 Task 2.8).
 
 ### One-time setup
 
@@ -142,14 +276,12 @@ The `.github/workflows/deploy.yml` workflow auto-deploys on `main` push after CI
 
 2. **Add it as a GitHub secret:**
    - https://github.com/dvhthomas/kno/settings/secrets/actions
-   - **"New repository secret"**
-   - Name: `FLY_API_TOKEN`
-   - Value: the token from step 1
+   - "New repository secret" → Name: `FLY_API_TOKEN` → Value: the token from step 1.
 
 3. **Optional: branch protection on `main`:**
    - https://github.com/dvhthomas/kno/settings/branches
-   - Require status checks (CI) before merging
-   - Require linear history (avoids merge commits cluttering the deploy log)
+   - Require status checks (CI) before merging.
+   - Require linear history.
 
 ### How it works
 
@@ -157,25 +289,25 @@ The `.github/workflows/deploy.yml` workflow auto-deploys on `main` push after CI
 - ruff (lint)
 - mypy --strict
 - pytest (unit + integration)
-- eval suite (against mocked Anthropic in CI)
+- eval suite (mocked Anthropic in CI)
 
 `.github/workflows/deploy.yml` runs on push to `main` after CI succeeds:
 - `flyctl deploy --remote-only` using `FLY_API_TOKEN`
-- Posts a comment on the merge commit with deploy result
+- Posts a comment on the merge commit with deploy result.
 
-### Manual deploy from your laptop (skip CI)
+### Manual deploy still works
 
 ```bash
 fly deploy
 ```
 
-Use sparingly — it bypasses CI's lint/type/test gates. The CI-driven path is the default for a reason.
+Bypasses CI's quality gates. Use sparingly.
 
 ---
 
-## 3. Off-machine backup with object storage (v2)
+## 6. Off-machine backup with object storage (v2)
 
-> **Status.** v2 deliverable. v1 ships with Fly volume snapshots (`fly volumes snapshots list <vol>`) as the off-machine backup story. This section documents the v2 design so future-us has a target.
+> **Status.** v2 deliverable. v1 ships with Fly volume snapshots as the off-machine backup story. This section documents the v2 design.
 
 ### Why off-machine backup matters
 
@@ -219,7 +351,7 @@ Set via `fly secrets set ...` for prod.
 
 ### Encryption-at-rest for backups
 
-Backups contain `service_connections` rows (encrypted with `KNO_TOKEN_ENC_KEY`). To rotate `KNO_TOKEN_ENC_KEY` you also rotate backup encryption — or you rely on the backup being already-encrypted at the SQLite-column level. v2 design adds a *second* encryption layer at the tarball level via `KNO_BACKUP_ENCRYPTION_KEY` so even a leaked bucket doesn't yield readable backups.
+Backups contain `service_connections` rows (encrypted with `KNO_TOKEN_ENC_KEY`). v2 design adds a *second* encryption layer at the tarball level via `KNO_BACKUP_ENCRYPTION_KEY` so even a leaked bucket doesn't yield readable backups.
 
 ### Daily backup cron (v2)
 
@@ -230,7 +362,7 @@ Backups contain `service_connections` rows (encrypted with `KNO_TOKEN_ENC_KEY`).
 4. Retention: 14 daily + 12 weekly + 6 monthly (configurable)
 5. Smoke-test: download the most recent backup, decrypt, run `PRAGMA integrity_check`
 
-Runs as a Fly scheduled machine. Alerts via structured log + (optionally) a webhook to Slack/Discord/email.
+Runs as a Fly scheduled machine.
 
 ### Restore from off-machine (v2)
 
@@ -238,34 +370,22 @@ Runs as a Fly scheduled machine. Alerts via structured log + (optionally) a webh
 uv run kno restore-from-s3 --date 2026-05-13
 ```
 
-Downloads, decrypts, runs `kno restore`. Documented in `docs/notes/data-management.md` once v2 ships.
+Documented in `docs/notes/data-management.md` once v2 ships.
 
 ### v1 alternative — Fly volume snapshots
 
-For v1, off-machine backup = `fly volumes snapshots list <volume>` + `fly volumes snapshots restore <snapshot-id>`. Adequate but Fly-locked.
+For v1, off-machine backup = `fly volumes snapshots list <volume>` + restore by cloning the snapshot. Adequate but Fly-locked.
 
 ```bash
-# Snapshots are automatic on Fly (every few days, retained ~5 days)
 fly volumes snapshots list kno_data
-# To restore: clone the snapshot into a new volume, point the machine at it
+# To restore: clone the snapshot into a new volume, point the machine at it.
 ```
 
-If you want longer retention or off-Fly storage in v1, the manual workaround:
-
-```bash
-# SSH in, kno backup, scp out
-fly ssh console
-> uv run kno backup --output -
-# Pipe to a local file via fly sftp
-fly sftp shell
-> get /app/kno-backup-<ts>.tar.gz
-```
-
-Awkward but works.
+For longer retention or off-Fly storage in v1: `fly ssh console` → `uv run kno backup --output -` → pipe to a local file via `fly sftp shell`. Awkward but works.
 
 ---
 
-## 4. Custom domain and TLS
+## 7. Custom domain and TLS
 
 ### Skip if you're fine with `<your-app>.fly.dev`
 
@@ -278,29 +398,29 @@ That domain works out of the box with valid TLS. Skip this section.
    fly certs add kno.yourdomain.com
    ```
 
-2. Fly prints DNS records you need to add. Two patterns:
+2. Fly prints DNS records to add. Two patterns:
    - **CNAME** (simpler): `kno.yourdomain.com → <your-app>.fly.dev`
    - **A + AAAA** (apex / more robust): point at Fly's IPs
 
-3. **Update your DNS** (Cloudflare, Route 53, whatever) with the records Fly gave you.
+3. **Update your DNS** with the records Fly gave you.
 
 4. **Wait for propagation** (usually minutes, can be hours):
    ```bash
    fly certs show kno.yourdomain.com
-   # Status should go from "awaiting configuration" to "ready"
+   # Status: "awaiting configuration" → "ready"
    ```
 
 5. **Update OAuth callback URLs** at Google + GitHub:
-   - Google: add `https://kno.yourdomain.com/api/auth/google/callback` as an authorized redirect URI (Google supports multiple).
-   - GitHub: callback URLs are single-value per OAuth App; register a *third* OAuth App for the custom domain if you want both `.fly.dev` and the custom domain to work. Or just retire the `.fly.dev`-callback App once the custom domain works.
+   - Google: add `https://kno.yourdomain.com/api/auth/google/callback` (Google supports multiple).
+   - GitHub: register a *new* OAuth App for the custom domain (GitHub allows only one callback URL per App).
 
 ### TLS
 
-Fly handles TLS automatically via Let's Encrypt. No cert config in `fly.toml`. Renews automatically.
+Fly handles TLS via Let's Encrypt automatically. No cert config in `fly.toml`. Renews automatically.
 
 ---
 
-## 5. Operational tips — logs, ssh, monitoring
+## 8. Operational tips — logs, ssh, monitoring
 
 ### Tail logs
 
@@ -316,15 +436,13 @@ fly logs --instance <machine-id>  # specific machine if you have >1
 fly ssh console
 ```
 
-Drops you into a shell inside the container. From there:
+From inside:
 
 ```bash
-cd /app
-uv run kno serve  # already running; this is for ad-hoc commands
 sqlite3 /data/kno.db "SELECT count(*) FROM runs;"
 ```
 
-**Backup from inside the container:**
+### Backup from inside the container
 
 ```bash
 fly ssh console
@@ -335,6 +453,8 @@ fly sftp shell
 > get /tmp/kno-backup.tar.gz
 ```
 
+See [`docs/notes/data-management.md`](notes/data-management.md) for the full backup/restore/wipe/export/rotate procedures.
+
 ### Cost monitoring (Anthropic spend)
 
 The `model_calls` table is the source of truth. From SSH:
@@ -344,34 +464,28 @@ sqlite3 /data/kno.db \
   "SELECT date(ts) AS day, sum(cost_usd) FROM model_calls GROUP BY day ORDER BY day DESC LIMIT 14;"
 ```
 
-Or visit `/admin/cost` in the UI (Phase 2 deliverable).
+Or visit `/admin/cost` (Phase 2 deliverable).
 
 ### Honeycomb traces
 
-If `KNO_HONEYCOMB_KEY` is set, every agent run and every model call shows up at `ui.honeycomb.io`. Useful for:
-
-- "Why was that one panel run 3x slower than usual?" — drill into spans.
-- "Which workflow has the highest p99 latency?" — query per-workflow.
-- "What does a typical Flow Coach run look like end-to-end?" — single-trace view.
-
-For v1's expected load (1 user, a few runs per hour), this is overkill but cheap and educational.
+If `KNO_HONEYCOMB_KEY` is set, every agent run and every model call shows up at `ui.honeycomb.io`. Optional, low cost, useful for "why was that run weird?" debugging.
 
 ---
 
-## 6. Platform troubleshooting
+## 9. Platform troubleshooting
 
-Issues that happen *outside* the app — the in-app errors are surfaced in the UI itself. This section is for "deploy broke" / "container won't start" / "DNS isn't resolving" scenarios.
+In-app errors are surfaced by the UI itself. This section is for *outside-the-app* failures.
 
 ### `fly deploy` fails with "no machine available"
 
-Region may be temporarily out of capacity. Try a different region:
+Region temporarily out of capacity. Try another:
 
 ```bash
 fly machines list
 fly scale count 1 --region <different-region>
 ```
 
-### Container starts but immediately crashes
+### Container boots but `/api/health` returns 5xx
 
 Tail the logs:
 
@@ -381,22 +495,24 @@ fly logs --no-tail | tail -100
 
 Common causes:
 
-- Missing required env var → boot fails with `ConfigError: KNO_FOO is required`. Set via `fly secrets set`.
-- DB migration mismatch → `alembic upgrade head` failed on the volume. SSH in, run by hand to see the error.
+- DB migration mismatch → `alembic upgrade head` failed on the volume. SSH in and run by hand to see the error.
 - Volume not mounted → log shows `data/ doesn't exist`. Verify `fly.toml` has the mount declaration.
+- Unrecoverable config error → log shows `ConfigError: KNO_FOO is invalid`. Fix via `fly secrets set`.
 
-### Custom domain shows "awaiting configuration" forever
+(Missing optional secrets should not cause a crash; if they do, the config layer is failing too aggressively for Milestone 1 to work — see §0 note.)
 
-DNS hasn't propagated. Try:
+### Custom domain stuck on "awaiting configuration"
+
+DNS hasn't propagated. Check:
 
 ```bash
 dig kno.yourdomain.com
 ```
 
-Compare against what Fly told you to add. Common gotchas:
-- TTL too high — wait longer
-- Proxied through Cloudflare with "Orange Cloud" enabled — disable proxying for the Kno record, OR configure Cloudflare to use Origin Server for Fly
-- Wrong record type (A vs CNAME vs ALIAS)
+Common gotchas:
+- TTL too high — wait longer.
+- Cloudflare "Orange Cloud" proxying enabled — disable it for the Kno record.
+- Wrong record type (A vs CNAME vs ALIAS).
 
 ### TLS cert won't issue
 
@@ -404,23 +520,24 @@ Compare against what Fly told you to add. Common gotchas:
 fly certs show kno.yourdomain.com
 ```
 
-Status will tell you what's missing. Most often: DNS records pointing at a different IP.
+Status tells you what's missing. Most often: DNS records point at the wrong IP.
 
-### `fly logs` shows no output
+### `fly logs` shows nothing
 
-Likely the container isn't logging to stderr. Verify `KNO_LOG_LEVEL=INFO` (or DEBUG) is set, and that `structlog` is configured to write to stderr (default).
+Container isn't logging to stderr. Verify `KNO_LOG_LEVEL=INFO` and that `structlog` is configured to write to stderr (the default).
 
 ### Anything else
 
-1. **In-app errors**: check the chat UI's error banner, `/ui/runs/<id>` timeline, or `/api/health`.
-2. **Platform-level errors**: `fly logs`, `fly status`, `fly ssh console`.
-3. **For the rest**: `docs/spec.md`, `docs/adr/`, or open an issue with the symptom and log excerpt.
+1. In-app errors: `/api/health`, `/ui/runs/<id>` timeline, chat error banner.
+2. Platform errors: `fly logs`, `fly status`, `fly ssh console`.
+3. Beyond that: `docs/spec.md`, `docs/adr/`, or open an issue with symptom + log excerpt.
 
 ---
 
-## 7. Update history
+## 10. Update history
 
 | Date | Change |
 |---|---|
-| 2026-05-13 | Initial ops manual. Local setup migrated to `docs/notes/setup/local-quickstart.md`; backup/wipe/export/rotate migrated to `docs/notes/data-management.md`. This doc now scoped to platform / deploy / off-machine operations only. |
-| 2026-05-13 (earlier) | First version included local setup + per-provider OAuth setup; superseded by the split when it became clear the web setup wizard is the canonical setup surface. |
+| 2026-05-13 | **Restructured around deploy milestones** (Hello-Kno → +Google → +Anthropic → +full Kno-Lite). Each milestone has explicit build pre-requisites + verifiable result. Reader can stop at any milestone with something working. Adds a §0 explaining the build pre-reqs before any deploy is possible. Makes explicit that the config layer must be lenient about missing optional secrets (boots with `not_configured` rather than crashing). |
+| 2026-05-13 (earlier) | Split from the original ops.md into ops.md (platform/deploy) + `docs/notes/setup/local-quickstart.md` (local setup) + `docs/notes/data-management.md` (backup/wipe/export/rotate). |
+| 2026-05-13 (initial) | First version included local setup + per-provider OAuth setup; superseded by the split when it became clear the web setup wizard is the canonical setup surface. |
