@@ -25,14 +25,20 @@ The cycle in brief — see `/agent-skills:test` for the full discipline:
 
 ## Strict pre-merge review
 
-**Before any draft PR is flipped to ready-for-review, the executing agent MUST invoke `Agent(subagent_type="agent-skills:code-reviewer")` with the PR's diff as context, post the findings as a PR comment, and address every Critical or Important finding. Skipping the invocation is grounds for immediate rejection.**
+**Before any draft PR is flipped to ready-for-review, the executing agent MUST invoke `Agent(subagent_type="agent-skills:code-reviewer")` against the PR's full diff vs. `main` at the moment of `gh pr ready`, post the findings as a PR comment, and address every Critical and Important finding. Skipping the invocation is grounds for immediate rejection.**
+
+**Definition of "addressed":** either (a) a follow-up commit on the same branch that the code-reviewer subagent, on re-invocation, confirms resolves the finding, OR (b) an explicit `wontfix:` reply comment on the PR citing concretely why the finding does not apply.
 
 Conditional triggers in addition to the above:
 
 - PR touches auth / sessions / secrets / OAuth / user input parsing / new external API surface → ALSO invoke `Agent(subagent_type="agent-skills:security-auditor")`.
-- PR adds or modifies test files → ALSO invoke `Agent(subagent_type="agent-skills:test-engineer")`.
+- PR adds, modifies, or restructures **test infrastructure** (fixtures, conftest.py, custom pytest plugins, test harness, mock factories) → ALSO invoke `Agent(subagent_type="agent-skills:test-engineer")`. *Per-feature TDD test additions are covered by the strict-TDD rule and do not separately require test-engineer.*
 
-See [`docs/notes/dev-flow.md` → Subagent review gates](docs/notes/dev-flow.md#subagent-review-gates) for the full mapping plus the MAY-invoke menu of judgment-call helpers (`/agent-skills:plan`, `/agent-skills:debugging-and-error-recovery`, etc.).
+The subagent form (`Agent(subagent_type=…)`) is canonical for these gates — it isolates the review into its own context and returns a self-contained verdict. The `/agent-skills:review` slash command is for interactive human use, not for fulfilling the gate.
+
+**Status: agent-discipline-enforced in Phase 1.** Issue [#11](https://github.com/dvhthomas/kno/issues/11) tracks the Phase 2 GitHub Action that will assert the presence of a properly-signed code-reviewer comment before allowing `ready_for_review`.
+
+See [`docs/notes/dev-flow.md` → Subagent review gates](docs/notes/dev-flow.md#subagent-review-gates) for the full mapping plus the MAY-invoke menu of judgment-call helpers.
 
 ## Strict pre-deploy review
 

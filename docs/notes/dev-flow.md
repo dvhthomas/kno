@@ -145,23 +145,27 @@ gh issue edit <n> --remove-label blocked --add-label in-progress
 
 ### **In Progress → In Review** — mark PR ready for human review
 
-Per `AGENTS.md` → Strict pre-merge review: subagent review is required before flipping ready.
+Per `AGENTS.md` → Strict pre-merge review: subagent review is required at the moment of flip-to-ready, against the PR's full diff vs. `main`.
 
 ```bash
-# 1. Invoke the code-reviewer subagent against this PR's diff. The agent reads
-#    the changed files and posts a five-axis review. Address every Critical
-#    and Important finding before continuing.
-#    (Done from the agent harness via Agent(subagent_type="agent-skills:code-reviewer"),
-#    or invoke the equivalent slash command /agent-skills:review.)
+# 1. Invoke the code-reviewer subagent against the PR's full diff vs. main.
+#    The agent reads the changed files and returns a five-axis review.
+#    (From the agent harness: Agent(subagent_type="agent-skills:code-reviewer").)
 #
-#    Conditional: ALSO invoke security-auditor if the PR touches auth, secrets,
-#    OAuth, user-input parsing, or external API surface.
-#    ALSO invoke test-engineer if the PR adds or modifies tests.
+#    Conditional: ALSO invoke agent-skills:security-auditor if the PR touches
+#    auth / sessions / secrets / OAuth / user-input parsing / external API surface.
+#    ALSO invoke agent-skills:test-engineer if the PR modifies test infrastructure
+#    (fixtures, conftest.py, harness — not per-feature TDD test additions).
 
-# 2. Post the findings as a PR comment (so reviewers see the audit trail):
-gh pr comment <pr#> --body-file /tmp/code-review-findings.md
+# 2. Post the findings verbatim as a PR comment so the audit trail is on the
+#    PR, not just in the agent transcript:
+gh pr comment <pr#> --body-file <findings.md>
 
-# 3. Flip the PR to ready.
+# 3. Address every Critical and Important finding before flipping ready.
+#    "Addressed" means either a follow-up commit that re-invocation confirms
+#    resolves the finding, OR a `wontfix:` reply comment citing why.
+
+# 4. Flip the PR to ready.
 gh pr ready <pr#>
 gh issue edit <n> --remove-label in-progress --add-label in-review
 ```
@@ -264,12 +268,14 @@ Don't bypass — *change the rule* in `.github/workflows/pr-validate.yml`, open 
 
 The YAML enforcement above catches *form* (branch name, labels, references). It cannot catch *substance* (logic errors, security holes, dead abstractions, missing edge cases). For substance, we invoke the [`addyosmani/agent-skills`](https://github.com/addyosmani/agent-skills) suite at specific lifecycle moments.
 
-### MUST-invoke (mandatory; rule break if skipped)
+> **Phase 1 caveat — honest disclosure.** Unlike the YAML enforcement layer above (which is server-side and un-bypassable), the subagent gates in this section are **agent-discipline-enforced**: a textual rule in `AGENTS.md` says the executing agent MUST invoke them, but nothing in the CI fails if the agent skips. Issue [#11](https://github.com/dvhthomas/kno/issues/11) tracks the Phase 2 GitHub Action that will assert the presence of a code-reviewer comment before allowing `ready_for_review` — that will close the bypass loophole.
+
+### MUST-invoke (mandatory; rule break if skipped — Phase 1 enforcement caveat above applies)
 
 | Lifecycle moment | Skill / agent | Status |
 |---|---|---|
 | Each TDD cycle | `/agent-skills:test` | In `AGENTS.md` Strict-TDD rule |
-| Draft PR → ready-for-review | `Agent(subagent_type="agent-skills:code-reviewer")` | In `AGENTS.md` Strict-pre-merge-review rule |
+| Draft PR → ready-for-review (PR's full diff vs. `main`) | `Agent(subagent_type="agent-skills:code-reviewer")` | In `AGENTS.md` Strict-pre-merge-review rule |
 | Before any deploy (`fly deploy`) | `/agent-skills:ship` | In `AGENTS.md` Strict-pre-deploy-review rule |
 
 ### MUST-invoke (conditional on change content)
@@ -277,7 +283,7 @@ The YAML enforcement above catches *form* (branch name, labels, references). It 
 | Condition | Additional agent |
 |---|---|
 | PR touches auth / sessions / secrets / OAuth / user input / external API surface | `Agent(subagent_type="agent-skills:security-auditor")` *(plus `/agent-skills:security-and-hardening` skill guidance)* |
-| PR adds or modifies test files | `Agent(subagent_type="agent-skills:test-engineer")` |
+| PR modifies test **infrastructure** (fixtures, `conftest.py`, harness, mock factories) | `Agent(subagent_type="agent-skills:test-engineer")` *(per-feature TDD test additions are covered by strict-TDD and do not separately require test-engineer)* |
 
 ### MAY-invoke (judgment-call helpers; not gated, but recommended)
 
