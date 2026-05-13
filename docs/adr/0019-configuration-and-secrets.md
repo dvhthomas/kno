@@ -79,6 +79,8 @@ CREATE TABLE service_connections (
 );
 ```
 
+**The `(user_id, provider, connection_label)` unique constraint is load-bearing**: it allows a single user to have N connections to the same provider (e.g. multiple Google accounts). See §2.5 for the UX implications.
+
 **Why `config_json_enc` is also encrypted** even though some fields aren't secret (Jira URL): it simplifies the threat model (one decryption path; nothing to forget); doesn't meaningfully add cost; future-proofs against fields that *do* become sensitive (some Jira fields shouldn't leak).
 
 **Pattern 1 — OAuth provider** (Google, GitHub, future Slack/Notion/Granola):
@@ -129,7 +131,47 @@ The MCP server's tool implementation reads from this block. If absent, sensible 
 
 Different audiences, different lifecycles, different storage.
 
-### 2.4 Agent memory (`semantic_facts`, future `episodic_sessions`)
+### 2.5 Multiple connections per (user, provider) — load-bearing
+
+The schema unique constraint is `UNIQUE(user_id, provider, connection_label)` — **not** `(user_id, provider)`. This is intentional and load-bearing for the use case the owner described: "Kno app that can read my Google Drive stuff from *multiple* Google accounts."
+
+A user can have N connections to the same provider, each with a distinct user-chosen label:
+
+```
+service_connections
+─────────────────────────────────────────────────────────────────
+user_id  provider  connection_label       access_token_enc   ...
+─────────────────────────────────────────────────────────────────
+dylan    google    "Personal"             Fernet(...)
+dylan    google    "Work"                 Fernet(...)
+dylan    google    "Side project"         Fernet(...)
+dylan    github    "Personal"             Fernet(...)
+dylan    github    "Work (alwaysmap)"     Fernet(...)
+dylan    jira      "Work — Atlassian"     Fernet(...)
+```
+
+**The `/ui/connections` UX is "Connect Google" / "Connect GitHub" as a button you can press repeatedly**. Each press runs a fresh OAuth flow (the provider's consent screen lets the user pick which account; Google + GitHub both support this natively). On callback, the user is asked for a `connection_label` (with a sensible default proposed from the OAuth profile's `email`/`name` field).
+
+Provider-side:
+- **One OAuth app registration** per provider, configured in `.env` (`KNO_GOOGLE_CLIENT_ID`/`SECRET`, `KNO_GITHUB_CLIENT_ID`/`SECRET`). The app declares all scopes Kno might ever want for that provider; the user grants what they grant per-account.
+- **The app's callback URL** matches the deployment (`http://localhost:8000/api/auth/<provider>/callback` for local, `https://kno.fly.dev/api/auth/<provider>/callback` for hosted). Both are registered as authorized redirect URIs in the OAuth client config.
+- **Scopes are declared per-provider in code** (`src/kno/auth/providers/<name>.py`), not in `.env`. They're part of Kno's identity, not deployment config.
+
+#### Connection selection at tool-call time
+
+Once a user has multiple connections to the same provider, tools must pick which to use. **Kno-Lite v1 ships single-connection-per-provider** (no multi-account UX surfaced; the schema allows it but the UI doesn't), so this is a v2 concern. The decision space, recorded so v2 can resolve cleanly:
+
+| Strategy | When to use |
+|---|---|
+| **Tool argument: `connection_label`** | When the agent has enough context to choose ("read the Q4 plan from Work"); explicit; testable |
+| **Workflow default**: `tools.gdrive.default_connection: "Work"` in workflow YAML | When a workflow is opinionated about which account is canonical |
+| **Most-recently-used per provider** | Fallback when nothing else specifies; surfaces as a `last_used_at` query |
+| **Agent asks the user** | When ambiguous; result stored in `semantic_facts` ("for repos under `alwaysmap`, prefer Work GitHub") |
+| **All connections, fan out + merge** | Power-user: `kb_search` could query KB docs ingested under either Google account |
+
+v2 ADR-to-come will pick a default + escape hatch. Likeliest landing: tool argument is the contract; workflow default fills it; agent asks if neither resolves; "all connections" as an opt-in mode for fan-out tools.
+
+### 2.6 Agent memory (`semantic_facts`, future `episodic_sessions`)
 
 Not config — long-term agent state. Mentioned here only because it's sometimes confused with config:
 
