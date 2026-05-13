@@ -55,25 +55,25 @@ Six columns on [project 3](https://github.com/users/dvhthomas/projects/3): **Ide
 ```mermaid
 stateDiagram-v2
     direction LR
-    [*] --> Ideas: gh issue create
+    [*] --> Ideas: opened
 
-    Ideas --> Shaping: add `shaping` label\n+ draft PR
-    Shaping --> InProgress: swap `shaping` → `in-progress`
-    InProgress --> Blocked: comment + swap label
-    Blocked --> InProgress: swap label back
-    InProgress --> InReview: gh pr ready + swap label
-    InReview --> InProgress: review found issues
-    InReview --> Shipped: gh pr merge
+    Ideas --> Shaping: picked up
+    Shaping --> InProgress: TDD begins
+    InProgress --> Blocked: external block
+    Blocked --> InProgress: unblocked
+    InProgress --> InReview: PR ready
+    InReview --> InProgress: changes requested
+    InReview --> Shipped: PR merged
 
-    InReview --> Ideas: deprioritized\n(issue stays open)
+    InReview --> Ideas: deprioritized
 
     Ideas --> Wontfix: not planned
-    Shaping --> Wontfix
-    InProgress --> Wontfix: aborted mid-work
-    InReview --> Wontfix: rejected permanently
+    Shaping --> Wontfix: not planned
+    InProgress --> Wontfix: aborted
+    InReview --> Wontfix: rejected
 
-    Ideas --> Duplicate
-    Shaping --> Duplicate
+    Ideas --> Duplicate: duplicate found
+    Shaping --> Duplicate: duplicate found
 
     Shipped --> [*]
     Wontfix --> [*]
