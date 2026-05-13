@@ -110,3 +110,73 @@ class TestTransitionLabels:
         assert pr_label_sync.transition_labels(
             ["enhancement"], "shaping", "opened", True
         ) == ([], ["shaping"])
+
+
+# ─── pr_review_gate ───────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def pr_review_gate():
+    return _load("pr_review_gate")
+
+
+class TestFindReviewComment:
+    """`find_review_comment(comments)` returns the *latest* comment matching
+    the `## Code-reviewer subagent` marker, or None."""
+
+    def test_returns_none_when_no_marker(self, pr_review_gate):
+        comments = [
+            {"body": "looks good!", "created_at": "2026-05-13T10:00:00Z"},
+            {"body": "## Some other heading\nbody", "created_at": "2026-05-13T11:00:00Z"},
+        ]
+        assert pr_review_gate.find_review_comment(comments) is None
+
+    def test_returns_match_when_single(self, pr_review_gate):
+        comments = [
+            {"body": "## Code-reviewer subagent\n**Verdict:** APPROVE",
+             "created_at": "2026-05-13T10:00:00Z"},
+        ]
+        result = pr_review_gate.find_review_comment(comments)
+        assert result is not None
+        assert "APPROVE" in result["body"]
+
+    def test_returns_latest_when_multiple(self, pr_review_gate):
+        comments = [
+            {"body": "## Code-reviewer subagent\n**Verdict:** REQUEST CHANGES",
+             "created_at": "2026-05-13T10:00:00Z"},
+            {"body": "## Code-reviewer subagent\n**Verdict:** APPROVE",
+             "created_at": "2026-05-13T11:00:00Z"},
+        ]
+        result = pr_review_gate.find_review_comment(comments)
+        assert "APPROVE" in result["body"]
+
+    def test_rejects_indented_heading(self, pr_review_gate):
+        # Heading must be at column 0 — leading whitespace doesn't match.
+        comments = [
+            {"body": "  ## Code-reviewer subagent\n**Verdict:** APPROVE",
+             "created_at": "2026-05-13T11:00:00Z"},
+        ]
+        assert pr_review_gate.find_review_comment(comments) is None
+
+
+class TestIsApproved:
+    """`is_approved(body)` returns True only when `**Verdict:** APPROVE`
+    is the entire content of a line (no trailing text)."""
+
+    def test_approve_alone_on_line(self, pr_review_gate):
+        assert pr_review_gate.is_approved("## Header\n**Verdict:** APPROVE\nmore text") is True
+
+    def test_request_changes_rejected(self, pr_review_gate):
+        assert pr_review_gate.is_approved("**Verdict:** REQUEST CHANGES") is False
+
+    def test_legend_text_rejected(self, pr_review_gate):
+        # The skill's template legend reads "APPROVE | REQUEST CHANGES" —
+        # this must NOT match.
+        body = "Verdict line legend: **Verdict:** APPROVE | REQUEST CHANGES"
+        assert pr_review_gate.is_approved(body) is False
+
+    def test_approve_pending_rejected(self, pr_review_gate):
+        assert pr_review_gate.is_approved("**Verdict:** APPROVE_PENDING") is False
+
+    def test_no_verdict_at_all(self, pr_review_gate):
+        assert pr_review_gate.is_approved("nothing useful here") is False
