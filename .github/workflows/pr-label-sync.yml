@@ -1,22 +1,22 @@
-name: PR validate
+name: PR-state label sync
 
 on:
   pull_request:
-    types: [opened, edited, synchronize, reopened, ready_for_review]
+    types: [opened, ready_for_review, converted_to_draft, reopened]
 
 permissions:
   pull-requests: read
-  issues: read
-  contents: read
+  issues: write
 
 jobs:
-  validate:
+  sync:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - run: python3 .github/scripts/pr_validate.py
+      - run: python3 .github/scripts/pr_label_sync.py
         env:
-          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
           PR_BODY: ${{ github.event.pull_request.body }}
+          PR_ACTION: ${{ github.event.action }}
+          PR_IS_DRAFT: ${{ github.event.pull_request.draft }}
           GH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
