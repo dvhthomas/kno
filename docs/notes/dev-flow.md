@@ -48,7 +48,51 @@ Four buckets. Each managed by a different mechanism so authority is clear:
 
 ## Project board: how to move a card
 
-Six columns on [project 3](https://github.com/users/dvhthomas/projects/3): **Ideas → Shaping → In progress → Blocked → In review → Shipped**.
+Six columns on [project 3](https://github.com/users/dvhthomas/projects/3): **Ideas → Shaping → In progress → Blocked → In review → Shipped**. Three close-states (**Shipped**, **Wontfix**, **Duplicate**) — see closing rule below.
+
+### State diagram
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> Ideas: gh issue create
+
+    Ideas --> Shaping: add `shaping` label\n+ draft PR
+    Shaping --> InProgress: swap `shaping` → `in-progress`
+    InProgress --> Blocked: comment + swap label
+    Blocked --> InProgress: swap label back
+    InProgress --> InReview: gh pr ready + swap label
+    InReview --> InProgress: review found issues
+    InReview --> Shipped: gh pr merge
+
+    InReview --> Ideas: deprioritized\n(issue stays open)
+
+    Ideas --> Wontfix: not planned
+    Shaping --> Wontfix
+    InProgress --> Wontfix: aborted mid-work
+    InReview --> Wontfix: rejected permanently
+
+    Ideas --> Duplicate
+    Shaping --> Duplicate
+
+    Shipped --> [*]
+    Wontfix --> [*]
+    Duplicate --> [*]
+```
+
+Every state has a documented inbound + outbound transition. No dangling states.
+
+### Closing rule
+
+**Issues do not close silently.** Every close must reference a PR, commit, or related issue. Three paths exist; any other close is a bug — reopen and ask.
+
+1. **Auto-close (preferred).** `Closes #<n>` / `Fixes #<n>` / `Resolves #<n>` in a merged PR body **or** in any commit pushed to `main` auto-closes the issue and applies `done`. Use this 95% of the time.
+2. **Manual close as Wontfix.** A comment citing a PR, commit, OR related issue is required (see Wontfix section below).
+3. **Manual close as Duplicate.** A comment naming the canonical issue is required (see Duplicate section).
+
+PRs are looser: a PR may be merged or closed without a `Closes #` reference, but that's rare — most PRs address a tracked issue, and the PR template already includes the line.
+
+### Daily flow (the rest of this section)
 
 `project-label-sync` is bidirectional — the `gh` commands below drive the entire flow without touching the board UI; the board moves to match within 15 minutes. (Or drag the card on the board; the labels follow.)
 
@@ -112,16 +156,50 @@ gh pr merge <pr#> --squash --delete-branch
 # `done` label arrives within 15 min via project-label-sync.
 ```
 
-### **In review → rejected** — back to Ideas
+### **In review → deprioritized** — issue stays open
+
+The "we'll reconsider later" path. Issue does **not** close.
 
 ```bash
-gh issue comment <n> --body "Rejecting because <reason>."
-gh pr close <pr#>
+gh pr close <pr#> --comment "Deprioritized — see #<n>."
+gh issue comment <n> --body "Deprioritized: <reason>. Will reconsider later."
 gh issue edit <n> --remove-label in-review
-# Drag the card back to Ideas on the board.
+# Drag the card to Ideas on the board (the bidirectional sync can't move it
+# automatically since Ideas has no mapped label).
 ```
 
-**Rule of thumb.** The board is a status tool, not a gate. If a card is in the wrong column, move it; don't ask.
+For *permanent* rejection, use **Close as Wontfix** below — the issue closes properly with a documented reason.
+
+### Close as **Wontfix** — any column → Wontfix (issue closes)
+
+The "not planned" path. The closing comment **must** cite a PR, commit, or related issue per the closing rule.
+
+```bash
+# If a draft PR exists for this issue, close it first with a back-reference:
+gh pr close <pr#> --comment "Closing — issue #<n> is wontfix."
+
+# Then close the issue with a reference-bearing comment:
+gh issue close <n> --reason "not planned" \
+    --comment "Closing as wontfix. <reason>. See: PR #<m> / commit abc1234 / discussion #<x>."
+```
+
+Example close comments (any of these satisfies the rule):
+
+- `"Wontfix — the design we settled on in #42 obviates this."`
+- `"Wontfix — superseded by commit f3a9c12 which took a different approach."`
+- `"Wontfix — closing per PR #88 discussion; the trade-off favors keeping the current behavior."`
+
+### Close as **Duplicate** — any column → Duplicate (issue closes)
+
+```bash
+gh issue edit <n> --add-label duplicate
+gh issue close <n> --reason "not planned" \
+    --comment "Duplicate of #<m>."
+```
+
+The `duplicate` label is required so the issue is filterable later (`gh issue list --state closed --label duplicate`). The `--comment` must name the canonical issue, exactly as `Duplicate of #<m>` — gh and project-label-sync both leave this human-readable. GitHub's API also supports a `state_reason: duplicate` but `gh` CLI exposes only `not planned` / `completed`; `not planned` plus the label is the equivalent.
+
+**Rule of thumb.** The board is a status tool, not a gate. If a card is in the wrong column, move it; don't ask. If an issue is closed without a reference, reopen it.
 
 ### One-time setup before label sync works
 
