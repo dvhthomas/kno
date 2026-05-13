@@ -46,7 +46,8 @@ Conventions:
 
 ### 0.3 DB + migration 0001 **[B][P with 0.4]** *Depends on 0.2*
 - Acceptance: Alembic configured against SQLite; migration 0001 creates `users`, `sessions`, `service_connections`, `model_calls`, `runs`, `messages`, `tool_calls`, `audit_log`, `semantic_facts`, `agents`/`agent_versions` (empty shells reserved for v2), `workflows`/`workflow_versions`, `skills`/`skill_versions`. WAL pragmas applied on connect.
-- Verify: `alembic upgrade head` clean; `alembic downgrade base` then `upgrade head` round-trips; `PRAGMA journal_mode` returns `wal`.
+- **`service_connections` schema must include `connection_kind` (TEXT: `oauth`/`api_token`/`none`) and `config_json_enc` (BLOB, nullable) columns** per **ADR-0019**. v1 only exercises `oauth`; the columns ship from day one so v2 API-token integrations (Jira, Linear) don't require a future migration.
+- Verify: `alembic upgrade head` clean; `alembic downgrade base` then `upgrade head` round-trips; `PRAGMA journal_mode` returns `wal`; schema test asserts the two new columns exist on `service_connections`.
 - Files: `alembic.ini`, `migrations/env.py`, `migrations/versions/0001_*.py`, `src/kno/db/{session.py, models.py}`.
 
 ### 0.4 Google OAuth + sessions **[P with 0.3]**
@@ -214,12 +215,12 @@ Conventions:
 - Verify: integration test with a real token: `github_repo_summary("dvhthomas/kno")` returns title + description.
 - Files: `src/kno/mcp/servers/github.py`.
 
-### 1.9 `flowmetrics` MCP server **[P with 1.8]** *Depends on 0.7*
+### 1.9 `flowmetrics` MCP server **[P with 1.8]** *Depends on 0.7, 1.7 (GitHub OAuth)*
 - Acceptance: tools `flowmetrics_cycle_time`, `flowmetrics_throughput`, `flowmetrics_aging_wip`, `flowmetrics_when_done`, `flowmetrics_how_many`, `flowmetrics_efficiency`, `flowmetrics_cfd`. All `read`. Subprocess wraps `uv run flow ... --format json`. Pydantic-validates the schema-versioned envelope against a captured fixture.
-- Verify: integration test against `dvhthomas/kno`; full agent flow: ask flow-coach "how is the kno repo doing this month?" — response cites flowmetrics tool call(s), mentions P85 cycle time + aging WIP + one recommendation.
+- **Auth pattern (per ADR-0019)**: no new credential row. flowmetrics inherits GitHub auth via the standard `GH_TOKEN` env var, sourced from the user's existing GitHub OAuth row in `service_connections` and decrypted via the per-run token cache (ADR-0005). Subprocess invocation: `env={"GH_TOKEN": decrypted, ...minimal_allowlist}`.
+- Verify: integration test against `dvhthomas/kno`; full agent flow: ask flow-coach "how is the kno repo doing this month?" — response cites flowmetrics tool call(s), mentions P85 cycle time + aging WIP + one recommendation. Integration test also asserts `GH_TOKEN` is set in the subprocess env and the cached token is reused across calls in the same run (per ADR-0005 + ADR-0019).
 - Files: `src/kno/mcp/servers/flowmetrics.py`, `tests/integration/test_flowmetrics_mcp.py`, `tests/fixtures/flowmetrics_envelope.json`.
 - Pinning: pin `dvhthomas/flowmetrics` to a **specific commit SHA**, not a version (pre-alpha as of 2026-05-12; no releases yet). Re-snapshot the fixture envelope on every bump.
-- Auth: confirm flowmetrics' GitHub-token env var pattern during implementation (README doesn't document it as of 2026-05-12). Most likely `GH_TOKEN` standard.
 - **Deferred from v1**: `gh_velocity` MCP server. See `docs/notes/gh-velocity.md` for the trade-off and the triggers that would reintroduce it.
 
 ### 1.10 Simplified approval gate **[B]** *Depends on 0.7, 0.16*
