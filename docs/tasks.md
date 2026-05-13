@@ -40,8 +40,8 @@ Conventions:
 - Files: `pyproject.toml`, `uv.lock`, `.pre-commit-config.yaml`, `tests/conftest.py`.
 
 ### 0.2 Config layer **[F]** *Depends on 0.1*
-- Acceptance: `kno.config.Settings` (pydantic-settings) loads required env vars; fail-fast on missing.
-- Verify: unit test: missing `KNO_ANTHROPIC_API_KEY` raises `ConfigError` naming the key; `.env.example` documents every var.
+- Acceptance: `kno.config.Settings` (pydantic-settings) loads env vars with the `KNO_` prefix and `.env` file fallback. **Lenient boot** per `docs/ops.md` §0 — Settings must instantiate without any required credentials set. Sensitive fields (API keys, OAuth client secrets, session secret, token encryption key) wrap values in `pydantic.SecretStr` so they don't leak in `repr()` or logs. A `providers_status -> dict[str, bool]` property reports per-provider configured-or-not for `/api/health` (Task 0.10) to surface as `{provider}: ok` vs `{provider}: not_configured`. The fail-fast behavior moves to Phase 2 (setup wizard); v1 pre-wizard is lenient.
+- Verify: unit tests in `tests/unit/test_config.py` covering (a) `Settings()` boots with no env vars; (b) all optional credential fields default to None; (c) sensitive fields are `SecretStr` and their values never appear in `repr(settings)`; (d) `providers_status` correctly reports configured vs not, including the "OAuth needs BOTH id and secret" rule. `.env.example` documents every var.
 - Files: `src/kno/config.py`, `.env.example`, `tests/unit/test_config.py`.
 
 ### 0.3 DB + migration 0001 **[B][P with 0.4]** *Depends on 0.2*

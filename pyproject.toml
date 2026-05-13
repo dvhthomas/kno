@@ -7,10 +7,12 @@ requires-python = ">=3.12"
 license = { file = "LICENSE" }
 authors = [{ name = "Dylan Thomas" }]
 
-# v1 deps land per-task as features come online. v0.0.1 (project skeleton)
-# only needs typer so the `kno` CLI entry point resolves.
+# v1 deps land per-task as features come online.
 dependencies = [
     "typer>=0.12,<1.0",
+    # Task 0.2 — lenient-boot Settings (env vars + .env file).
+    "pydantic>=2.7,<3",
+    "pydantic-settings>=2.4,<3",
 ]
 
 [project.scripts]
