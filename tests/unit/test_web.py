@@ -12,6 +12,22 @@ def test_health_returns_200() -> None:
     assert response.status_code == 200
 
 
+def test_ui_root_returns_html_placeholder() -> None:
+    """`GET /ui/` returns a placeholder HTML page until the setup wizard exists.
+
+    Per `docs/ops.md` §1: 'Kno is running; setup not yet completed.' is what
+    a visitor sees at the Hello-Kno milestone.
+    """
+    from kno.web.app import app
+
+    client = TestClient(app)
+    response = client.get("/ui/")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    assert "Kno is running" in response.text
+
+
 def test_health_reports_providers_not_configured_when_no_secrets(
     no_kno_env: None,
 ) -> None:
