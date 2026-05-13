@@ -271,3 +271,72 @@ class TestValidateIssueLabels:
     )
     def test_all_four_type_labels_accepted(self, pr_validate, type_label):
         assert pr_validate.validate_issue_labels([type_label, "area:web"], 11) == []
+
+
+# ─── enforce_issue_close ──────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def enforce_issue_close():
+    return _load("enforce_issue_close")
+
+
+class TestIsAutoClosedByPrOrCommit:
+    """`is_auto_closed_by_pr_or_commit(closer)` reads the latest `ClosedEvent.closer`
+    GraphQL node and returns True iff a merged PR or commit closed the issue."""
+
+    def test_merged_pr_closer(self, enforce_issue_close):
+        closer = {"__typename": "PullRequest", "number": 2, "merged": True}
+        assert enforce_issue_close.is_auto_closed_by_pr_or_commit(closer) is True
+
+    def test_unmerged_pr_closer_is_false(self, enforce_issue_close):
+        closer = {"__typename": "PullRequest", "number": 2, "merged": False}
+        assert enforce_issue_close.is_auto_closed_by_pr_or_commit(closer) is False
+
+    def test_commit_closer(self, enforce_issue_close):
+        closer = {"__typename": "Commit", "abbreviatedOid": "abc1234"}
+        assert enforce_issue_close.is_auto_closed_by_pr_or_commit(closer) is True
+
+    def test_no_closer(self, enforce_issue_close):
+        assert enforce_issue_close.is_auto_closed_by_pr_or_commit(None) is False
+
+    def test_unknown_typename(self, enforce_issue_close):
+        closer = {"__typename": "SomeOther"}
+        assert enforce_issue_close.is_auto_closed_by_pr_or_commit(closer) is False
+
+
+class TestRecentCommentsHaveReference:
+    """`recent_comments_have_reference(comments)` scans the last 2 comments
+    for `#N` or a 7-40-char hex SHA reference."""
+
+    def test_no_comments(self, enforce_issue_close):
+        assert enforce_issue_close.recent_comments_have_reference([]) is False
+
+    def test_issue_number_reference(self, enforce_issue_close):
+        comments = [{"body": "Duplicate of #42."}]
+        assert enforce_issue_close.recent_comments_have_reference(comments) is True
+
+    def test_commit_sha_reference(self, enforce_issue_close):
+        comments = [{"body": "Closed by abc1234 — already shipped."}]
+        assert enforce_issue_close.recent_comments_have_reference(comments) is True
+
+    def test_no_reference_in_text(self, enforce_issue_close):
+        comments = [{"body": "Closing for now."}]
+        assert enforce_issue_close.recent_comments_have_reference(comments) is False
+
+    def test_only_last_two_checked(self, enforce_issue_close):
+        # The reference is in comment[0] but only last 2 are checked.
+        comments = [
+            {"body": "see #42"},
+            {"body": "no ref"},
+            {"body": "still no ref"},
+            {"body": "nothing"},
+        ]
+        assert enforce_issue_close.recent_comments_have_reference(comments) is False
+
+    def test_reference_in_recent(self, enforce_issue_close):
+        comments = [
+            {"body": "no ref"},
+            {"body": "see #42"},  # second-from-end, within last 2
+        ]
+        assert enforce_issue_close.recent_comments_have_reference(comments) is True
