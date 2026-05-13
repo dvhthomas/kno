@@ -13,7 +13,25 @@ import re
 
 CLOSES_RE = re.compile(r"(?:Closes|Fixes|Resolves)\s+#(\d+)", re.IGNORECASE)
 
+LIFECYCLE = ("shaping", "in-progress", "in-review")
+
 
 def parse_issue_refs(body: str) -> list[int]:
     """Extract unique issue numbers from `Closes|Fixes|Resolves #N` references."""
     return sorted({int(m) for m in CLOSES_RE.findall(body)})
+
+
+def target_label(action: str, is_draft: bool) -> str | None:
+    """Decide which lifecycle label the linked issue should have for this PR state.
+
+    Returns ``None`` if the action is one we don't transition on.
+    """
+    if action == "opened":
+        return "shaping" if is_draft else "in-review"
+    if action == "ready_for_review":
+        return "in-review"
+    if action == "converted_to_draft":
+        return "in-progress"
+    if action == "reopened":
+        return "in-progress" if is_draft else "in-review"
+    return None

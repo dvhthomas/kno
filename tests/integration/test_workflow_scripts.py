@@ -52,3 +52,22 @@ class TestParseIssueRefs:
 
     def test_case_insensitive_keyword(self, pr_label_sync):
         assert pr_label_sync.parse_issue_refs("CLOSES #11") == [11]
+
+
+class TestTargetLabel:
+    @pytest.mark.parametrize(
+        "action,is_draft,expected",
+        [
+            ("opened", True, "shaping"),
+            ("opened", False, "in-review"),
+            ("ready_for_review", False, "in-review"),
+            ("converted_to_draft", True, "in-progress"),
+            ("reopened", True, "in-progress"),
+            ("reopened", False, "in-review"),
+        ],
+    )
+    def test_known_actions(self, pr_label_sync, action, is_draft, expected):
+        assert pr_label_sync.target_label(action, is_draft) == expected
+
+    def test_unknown_action_returns_none(self, pr_label_sync):
+        assert pr_label_sync.target_label("closed", False) is None
