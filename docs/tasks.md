@@ -15,9 +15,8 @@ Conventions:
 
 ## Pre-flight (target: 2–3 days)
 
-- [ ] **P0-pre.1**: Resolve OQ-2 (gh-velocity output shape). **[B][F]**
-  - Acceptance: clear ingestion shape for `gh_velocity_repo_metrics`; documented in `docs/notes/gh-velocity.md`.
-  - Verify: 1-page note in repo; references actual `gh-velocity` README or CLI output structure.
+- [x] **P0-pre.1**: Resolve OQ-2 (gh-velocity output shape). **[B][F]** — **Resolved 2026-05-12.**
+  - Resolution: `docs/notes/gh-velocity.md`. Summary: gh-velocity is Dylan's `gh` CLI extension; produces JSON via `-r json`; **dvhthomas/flowmetrics** (created same day) covers the Monte Carlo + aging-WIP gap. **Decision: ship two MCP servers** (`gh_velocity` for current state, `flowmetrics` for forecasting) in Phase 1. Tools split as task 1.9a + 1.9b below.
 
 - [ ] **P0-pre.2**: Dev environment up. **[B][F]**
   - Acceptance: Python 3.12 via `uv`; Ollama with `nomic-embed-text` + `llama3.1:8b` (or `:70b` if RAM allows); `.env` populated.
@@ -215,18 +214,24 @@ Conventions:
 - Verify: integration test with a real token: `github_repo_summary("dvhthomas/kno")` returns title + description.
 - Files: `src/kno/mcp/servers/github.py`.
 
-### 1.9 `gh_velocity` MCP server **[P with 1.8]** *Depends on 0.7, OQ-2 resolved*
-- Acceptance: `gh_velocity_repo_metrics(repo, since)` returns Vacanti metrics (p50/p85 cycle time, throughput, WIP, aged items); `read`.
-- Verify: integration test against fixture or real repo; pydantic-validates the response.
-- Files: `src/kno/mcp/servers/gh_velocity.py`.
+### 1.9a `gh_velocity` MCP server **[P with 1.8, 1.9b]** *Depends on 0.7*
+- Acceptance: tools `gh_velocity_cycle_time`, `gh_velocity_throughput`, `gh_velocity_wip`, `gh_velocity_report`. All `read`. Subprocess wraps `gh velocity ... -r json`. Uses `GH_TOKEN` from GitHub connection + `GH_VELOCITY_TOKEN` from new env var. Auto-generates `.gh-velocity.yml` via `gh velocity config preflight` on first call per repo.
+- Verify: integration test against `dvhthomas/kno`; pydantic-validates the parsed JSON against `tests/fixtures/gh_velocity_schema.json` (snapshot captured during implementation per `docs/notes/gh-velocity.md`).
+- Files: `src/kno/mcp/servers/gh_velocity.py`, `tests/integration/test_gh_velocity_mcp.py`, `tests/fixtures/gh_velocity_schema.json`.
+
+### 1.9b `flowmetrics` MCP server **[P with 1.8, 1.9a]** *Depends on 0.7*
+- Acceptance: tools `flowmetrics_when_done`, `flowmetrics_how_many`, `flowmetrics_aging_wip`, `flowmetrics_efficiency`. All `read`. Subprocess wraps `uv run flow ... --format json`. Schema-versioned envelope per flowmetrics docs.
+- Verify: integration test against `dvhthomas/kno`; pydantic-validates the response envelope.
+- Files: `src/kno/mcp/servers/flowmetrics.py`, `tests/integration/test_flowmetrics_mcp.py`.
+- Note: `flowmetrics` was created 2026-05-12 (pre-alpha; no tagged releases). Pin to a specific commit SHA, not a version. Confirm auth env var pattern when wiring.
 
 ### 1.10 Simplified approval gate **[B]** *Depends on 0.7, 0.16*
 - Acceptance: per ADR-0018: `read` tools auto-allow; any non-`read` tool triggers `interrupt_before` in LangGraph; UI banner with Approve/Deny only (no typed confirmation, no cooldown). Full 5-category model deferred to v2.
 - Verify: synthetic `write`-category tool: turn pauses; click Approve resumes; Deny returns "denied by user" tool result.
 - Files: `src/kno/mcp/host.py` (extension), `src/kno/agent/nodes/tools.py`, `src/kno/web/templates/chat/approval_banner.html`.
 
-### 1.11 Seed: librarian + vacanti workflows + remaining skills **[F]** *Depends on 0.11, 0.12, 1.5, 1.8, 1.9*
-- Acceptance: workflows `kb-qa` (persona = librarian; tools: `mcp:kb_search`, `mcp:remember_fact`) and `flow-coach` (persona = vacanti; tools: `mcp:gh_velocity`, `mcp:github`, `mcp:kb_search`, `mcp:remember_fact`). Skills: existing 5 from pre-flight + `cite-sources` referenced by librarian.
+### 1.11 Seed: librarian + vacanti workflows + remaining skills **[F]** *Depends on 0.11, 0.12, 1.5, 1.8, 1.9a, 1.9b*
+- Acceptance: workflows `kb-qa` (persona = librarian; tools: `mcp:kb_search`, `mcp:remember_fact`) and `flow-coach` (persona = vacanti; tools: `mcp:gh_velocity`, `mcp:flowmetrics`, `mcp:github`, `mcp:kb_search`, `mcp:remember_fact`). Skills already drafted in pre-flight `data.seed/skills/`.
 - Verify: `POST /api/data/reload`; both workflows visible in `/ui/chat` picker.
 - Files: `data.seed/workflows/{kb-qa,flow-coach}/{workflow.yaml, persona.md}`.
 
