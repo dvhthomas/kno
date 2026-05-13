@@ -14,10 +14,13 @@
 
 project-url: https://github.com/users/dvhthomas/projects/3
 field: Status
-# Ideas and Shaping are intentionally unmapped — no label is applied while
-# work is being thought about, only once it's active. project-label-sync
-# quietly ignores unmapped statuses.
+# Ideas is intentionally unmapped — no label is applied for raw ideas.
+# Shaping IS mapped so the `shaping` label's first-applied timestamp marks
+# the start of lead time (the moment work was "picked up"). Cycle time
+# still starts later, at `in-progress` (when active work begins).
 mapping:
+  Shaping:
+    - shaping
   "In progress":
     - in-progress
   Blocked:

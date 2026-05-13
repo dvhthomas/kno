@@ -40,7 +40,7 @@ Four buckets. Each managed by a different mechanism so authority is clear:
 | Bucket | Examples | Managed by |
 |---|---|---|
 | **Type** | `bug`, `enhancement`, `documentation`, `chore` | `.github/labels.yml` → synced by `.github/workflows/labels.yml` on push to `main` |
-| **Lifecycle** | `in-progress`, `blocked`, `in-review`, `done` | `dvhthomas/project-label-sync` via `project-label-sync.yml` — driven from the Projects v2 board, runs every 15 min |
+| **Lifecycle** | `shaping`, `in-progress`, `blocked`, `in-review`, `done` | `dvhthomas/project-label-sync` via `project-label-sync.yml` — driven from the Projects v2 board, runs every 15 min |
 | **Area** | `area:agent`, `area:auth`, `area:web`, … | `.github/labels.yml` |
 | **Status flags** | `blocked`, `release-blocker`, `wontfix`, `duplicate`, `good first issue` | `.github/labels.yml` |
 
@@ -58,6 +58,8 @@ Six columns on [project 3](https://github.com/users/dvhthomas/projects/3): **Ide
 | **Blocked** | Work started but can't continue; a comment explains why. | Blocker resolved → back to **In progress**. |
 | **In review** | PR open; CI green. | PR merged → **Shipped**. (Rejected? Move card back to **Ideas** with the rejection comment.) |
 | **Shipped** | PR merged; issue auto-closed. | Terminal. |
+
+**Why Shaping gets a label but Ideas doesn't.** Moving a card to Shaping means the work has been picked up — that starts the **lead time** clock (the `shaping` label's first-applied timestamp). **Cycle time** still doesn't start until **In progress** (the `in-progress` label). Ideas is the parking lot for things we haven't picked up; no clocks running.
 
 **Anti-rule.** Don't add ceremony. If a card needs more thought, leave a comment; don't invent a longer DoR.
 
