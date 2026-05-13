@@ -23,7 +23,7 @@ import subprocess
 import sys
 
 MARKER_RE = re.compile(r"^##\s+Code-reviewer subagent", re.MULTILINE)
-APPROVE_RE = re.compile(r"^\s*\*\*Verdict:\*\*\s*APPROVE\s*$", re.MULTILINE | re.IGNORECASE)
+APPROVE_RE = re.compile(r"^\s*\*\*Verdict:\*\*\s*APPROVE\s*$", re.MULTILINE)
 
 
 def find_review_comment(comments: list[dict[str, object]]) -> dict[str, object] | None:
