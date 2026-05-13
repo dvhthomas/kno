@@ -378,7 +378,7 @@ Captured here so they're visible and not forgotten:
 - Panel of Experts (entire workflow kind, panelist agents, integrator, structured-output node, partial-failure handling, per-panelist drill-down) — ADRs 0007, 0008, 0009
 - Subagent runtime spawn mechanism
 - Approval gate elaborations (typed confirmation, cooldowns, `external_messaging`, `irreversible`, `/admin/approvals`, per-user policy overrides) — ADR-0016
-- KB sources beyond Hugo: generic GitHub markdown, Google Drive folders, direct uploads (PDF/MD/TXT), HTTP crawler
+- KB sources beyond Hugo: generic GitHub markdown, Google Drive folders, direct uploads (PDF/MD/TXT — drag-drop UX is the ~50 LOC vanilla JS + Alpine.js pattern documented in spec §4 / OQ-15; this is the only place in Kno-Lite that needs non-HTMX client-side JS), HTTP crawler
 - Multi-provider OAuth scaffolding (Slack, Notion, Granola)
 - Refinement rate limit, bump-level lint, auto-eval-on-save — ADRs 0013, 0014
 - Cost kill switch, per-day/month caps

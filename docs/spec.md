@@ -138,6 +138,7 @@ These are the rules. Every section below has to defend itself against these.
 - **OQ-10:** Panel-of-Experts workflows — which orchestration variant in v1? Concurrent (all agents respond to same input, synthesizer integrates) is cheapest and proposed default; debate/round-robin v2.
 - **OQ-11:** Initial `action_category` assignments for known MCP tools — pre-resolve so we don't ship anything fail-open. Action: write `data.seed/policy.yaml` and check it in.
 - ~~**OQ-12:**~~ → **Resolved (v0.8)**: dropped. No CLI chat; approval is browser-only.
+- **OQ-15:** Frontend stack — HTMX + Alpine for v1 (confirmed 2026-05-13). Triggers to reconsider SvelteKit in v2: real-time collaborative editing; mobile-first with native gestures; hire a frontend specialist; client-side computation that can't tolerate server round-trips. None currently apply. The API-first design (§8) keeps the migration cost bounded (~2 weeks, well-scoped) if a trigger ever fires.
 - **OQ-13:** When (not if) to revisit DSPy as an *offline* prompt-optimization tool. Two natural triggers: (a) the router prompt's per-call cost becomes the dominant ledger line, or (b) we accumulate ≥ 50 labeled runs per workflow and the `/admin/refine` flow (§14) is being used regularly. See §22.
 - **OQ-14:** Exact lint rules for the workflow/agent diff that force at least `minor` bump (§14.3). Initial list: any change under `tools.*`, `agent:`, `agents:` (panel), `model_override:`, `synthesizer:`, `input_schema:`, `output_schema:`. Whitespace-only and comment-only diffs may be `patch`. Confirm the list before implementation.
 
@@ -150,7 +151,7 @@ These are the rules. Every section below has to defend itself against these.
 | Language | **Python 3.12+** | Single language for the server, full agentic ecosystem |
 | Package mgmt | `uv` (lockfile + scripts) | Deterministic, fast |
 | HTTP | FastAPI + uvicorn | Async, typed, OpenAPI |
-| Frontend | Jinja2 + HTMX + Alpine | Thin layer; consumes the same service functions as `/api` |
+| Frontend | Jinja2 + HTMX + Alpine (+ ~50 LOC vanilla JS for file drag-drop only, when v2 adds direct uploads) | Thin layer; consumes the same service functions as `/api`. Server-authoritative model fits HTMX; API-first design (§8) keeps a SvelteKit migration ~2 weeks of well-scoped work if a future trigger fires. See OQ-15. |
 | Agent framework | **LangGraph** + `langgraph-checkpoint-sqlite` | State machine, durable resume. **Dep scope: no `langchain-community`.** |
 | LLM gateway | **LiteLLM** | Unified API, cost ledger, fallbacks, budgets |
 | LLM SDK (escape) | `anthropic` for prompt-cache `cache_control` | LiteLLM doesn't fully expose this |
