@@ -25,24 +25,20 @@ The cycle in brief — see `/agent-skills:test` for the full discipline:
 
 ## Strict pre-merge review
 
-**Before any draft PR is flipped to ready-for-review, the executing agent MUST invoke `Agent(subagent_type="agent-skills:code-reviewer")` against the PR's full diff vs. `main` at the moment of `gh pr ready`, post the findings as a PR comment, and address every Critical and Important finding. Skipping the invocation is grounds for immediate rejection.**
+**Before `gh pr ready` on any draft PR, the executing agent MUST invoke `Agent(subagent_type="agent-skills:code-reviewer")` against the PR's full diff vs. `main`, post findings as a PR comment, and address every Critical and Important finding. Skipping = rejection.**
 
-**Definition of "addressed":** either (a) a follow-up commit on the same branch that the code-reviewer subagent, on re-invocation, confirms resolves the finding, OR (b) an explicit `wontfix:` reply comment on the PR citing concretely why the finding does not apply.
+**Addressed** means either (a) a follow-up commit the subagent confirms resolves the finding on re-invocation, OR (b) an explicit `wontfix:` PR reply with concrete reasoning.
 
-Conditional triggers in addition to the above:
+Additional invocations on top of code-reviewer:
 
-- PR touches auth / sessions / secrets / OAuth / user input parsing / new external API surface → ALSO invoke `Agent(subagent_type="agent-skills:security-auditor")`.
-- PR adds, modifies, or restructures **test infrastructure** (fixtures, conftest.py, custom pytest plugins, test harness, mock factories) → ALSO invoke `Agent(subagent_type="agent-skills:test-engineer")`. *Per-feature TDD test additions are covered by the strict-TDD rule and do not separately require test-engineer.*
+- auth / sessions / secrets / OAuth / user input / external API surface → `agent-skills:security-auditor`
+- test infrastructure (fixtures, `conftest.py`, harness) → `agent-skills:test-engineer`
 
-The subagent form (`Agent(subagent_type=…)`) is canonical for these gates — it isolates the review into its own context and returns a self-contained verdict. The `/agent-skills:review` slash command is for interactive human use, not for fulfilling the gate.
-
-**Status: agent-discipline-enforced in Phase 1.** Issue [#11](https://github.com/dvhthomas/kno/issues/11) tracks the Phase 2 GitHub Action that will assert the presence of a properly-signed code-reviewer comment before allowing `ready_for_review`.
-
-See [`docs/notes/dev-flow.md` → Subagent review gates](docs/notes/dev-flow.md#subagent-review-gates) for the full mapping plus the MAY-invoke menu of judgment-call helpers.
+Phase 1 (agent-discipline-enforced). [#11](https://github.com/dvhthomas/kno/issues/11) tracks the Phase 2 Action that will fail the check when the review comment is absent.
 
 ## Strict pre-deploy review
 
-**Before any production deploy (`fly deploy` or equivalent), the executing agent MUST run `/agent-skills:ship` to fan out the pre-launch checklist and produce a go/no-go decision. A No-Go halts the deploy until the listed blockers are resolved.**
+**Before `fly deploy` (or equivalent), the executing agent MUST run `/agent-skills:ship`. No-Go halts the deploy until the listed blockers are resolved.**
 
 ## See also
 
