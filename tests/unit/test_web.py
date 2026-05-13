@@ -10,3 +10,22 @@ def test_health_returns_200() -> None:
     response = client.get("/api/health")
 
     assert response.status_code == 200
+
+
+def test_health_reports_providers_not_configured_when_no_secrets(
+    no_kno_env: None,
+) -> None:
+    """With no credentials configured, every provider reports `not_configured`.
+
+    The string form (vs the bool from ``providers_status``) is what surfaces
+    in the health payload, per ``docs/ops.md`` §1 Milestone 1 expected output.
+    """
+    from kno.web.app import app
+
+    client = TestClient(app)
+    response = client.get("/api/health")
+    body = response.json()
+
+    assert body["anthropic"] == "not_configured"
+    assert body["google_oauth"] == "not_configured"
+    assert body["github_oauth"] == "not_configured"
