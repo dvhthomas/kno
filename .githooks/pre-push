@@ -1,0 +1,45 @@
+#!/bin/sh
+# Reject pushes from branches that don't match the dev-flow naming convention.
+# Activate per clone: `git config core.hooksPath .githooks`
+# Bypass (use sparingly): `git push --no-verify`
+#
+# Pairs with server-side branch protection (which blocks direct push to main)
+# and the PR-validate Action (which rechecks branch name on PR open).
+
+set -eu
+
+branch=$(git symbolic-ref --short HEAD 2>/dev/null) || exit 0
+
+# `main` is blocked by branch protection on the server anyway — let this hook
+# fall through for the case where someone is trying.
+case "$branch" in
+  main|master) exit 0 ;;
+esac
+
+pattern='^(feat|fix|chore|docs|refactor|ci|build|test)/[0-9]+-[a-z0-9-]+$'
+
+if ! printf '%s\n' "$branch" | grep -Eq "$pattern"; then
+  cat >&2 <<EOF
+
+✗ Push rejected. Branch name does not follow dev-flow convention.
+
+Branch:
+  $branch
+
+Required pattern:
+  <type>/<issue#>-<slug>
+
+  Types:  feat | fix | chore | docs | refactor | ci | build | test
+  Examples:
+    feat/12-google-oauth
+    fix/47-config-leak
+    chore/3-bump-pydantic
+
+If this is an exploration branch, rename it:
+  git branch -m feat/<n>-<slug>
+
+Bypass (use sparingly):  git push --no-verify
+See:                     docs/notes/dev-flow.md → Branch model
+EOF
+  exit 1
+fi
