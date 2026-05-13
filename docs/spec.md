@@ -4,7 +4,9 @@
 > **Owner:** Dylan Thomas (`dvhthomas@gmail.com`)
 > **Last updated:** 2026-05-12
 
-> **v0.6 highlights** (full change log §24): Renamed Board → **Panel of Experts** (clearer). New **§10 Knowledge Base** unifies multi-source ingestion: GitHub Hugo repos, generic GitHub markdown, **Google Drive folders** (Docs/Sheets/PDFs — for `jobs4me.org` and similar), **direct uploads** (PDF/MD/TXT), and HTTP-crawl fallback. Substrate question (pgvector?) answered with math: SQLite+sqlite-vec is sufficient for the expected scale; Neon+pgvector migration is documented. New **§13 Action Approval & Side-Effect Policy**: every external write or message requires explicit approval; messages-as-you require typed confirmation; irreversible actions require typed confirmation + cooldown. Fail-closed by default.
+> **v0.7 highlights** (full change log §24): **Local-on-laptop is a first-class supported deployment mode**, not a dev artifact — same code runs at `http://localhost:8000` for personal use or `https://kno.fly.dev` for invitees. Spec §1 made explicit. **Substrate portability is honest**: SQLite ↔ Postgres migration goes through a `RetrievalBackend` interface (1–2 days of focused work when triggered); ADR-0015 carries the playbook and the objective scale triggers that signal the move. Misconception corrected: SQLite WAL does not break "the moment you add a second user" — it serves 30+ concurrent users at our write profile.
+>
+> **v0.6 highlights:** Renamed Board → Panel of Experts. §10 Knowledge Base unifies multi-source ingestion. §13 Action Approval & Side-Effect Policy with fail-closed default.
 >
 > **v0.5 highlights:** Agents first-class primitive alongside Skills and Workflows; Panel-of-Experts workflows compose multiple agents; GitHub canonical for data and workflow artifacts; optional git-backed `data/`.
 
@@ -19,6 +21,20 @@ Frame: this is **not** an app that has agents inside. This is a platform where a
 ### Users
 - **Owner**: me (`dvhthomas@gmail.com`). Admin.
 - **Trusted invitees**: 0–9 others (Google OAuth allowlist). Each has their own conversations, own memory, own service connections, optionally own private workflows. Workflows can be shared.
+
+### Deployment modes
+
+Kno runs as a single Python FastAPI server. Where that server lives is a deployment choice, **not** an architectural one — there's one codebase.
+
+| Mode | Where it runs | When it makes sense |
+|---|---|---|
+| **Local on laptop** | `uv run kno-server` on your own machine; accessed at `http://localhost:8000` | Personal solo use; offline-resilient; data never leaves the machine; no hosting cost |
+| **Hosted on Fly.io** (default for invited users) | `fly deploy` to a single Fly machine; accessed at `https://kno.fly.dev` (or custom domain) | Inviting others; access from phone / work laptop; Slack adapter (v2); scheduled triggers (v2) |
+| **Self-hosted server** | Hetzner VPS / homelab Linux box / Docker on your own server | Owner is sysadmin-comfortable; wants to avoid Fly billing |
+
+The same OAuth flow works in all three modes (Google supports `localhost` redirect URIs). Multi-user works in all three modes (the laptop becomes the "server" for anyone on the LAN). Mobile access works in all three modes as long as the URL is reachable.
+
+**A native desktop wrapper (Tauri/Electron) is deliberately out of scope for v1.** If we want one later, it's a thin webview pointed at whichever URL is configured (`localhost:8000` or `kno.fly.dev`) — same backend either way. No fork in the codebase.
 
 ### The four load-bearing workflows (v1)
 
@@ -138,7 +154,7 @@ These are the rules. Every section below has to defend itself against these.
 | ORM | SQLAlchemy 2.x + Alembic | Migrations, async |
 | Validation | Pydantic v2 everywhere | Boundary safety |
 | Observability | OpenTelemetry → Honeycomb free tier | Trace agent loops + tool calls |
-| Hosting | Fly.io (1 machine + 1 GB volume + 1 GB Ollama-model cache volume) | Cheap, simple |
+| Hosting | **Local-on-laptop OR Fly.io** (single machine + 1 GB volume + 1 GB Ollama-model cache volume) | Same code; deployment is a runtime choice (§1) |
 | CI | GitHub Actions | Integrates with flow-report workflow |
 | Tests | pytest + pytest-asyncio + respx + ephemeral SQLite | Real DB, mocked LLM in CI |
 | Lint/format/type | ruff (lint + format) + mypy --strict | One tool per concern |
@@ -773,7 +789,7 @@ You asked the question directly. **Stick with SQLite + sqlite-vec for v1.** The 
 
 **pgvector becomes worth it when:** index > 500k chunks, concurrent multi-tenant writes thrash SQLite's writer lock, or you need approximate-NN indexes (HNSW, IVFFlat) for sub-100ms p99 over many millions of vectors. None apply at 3–10 users.
 
-Migration path (mechanical, Alembic-driven): see §11.5 — Neon's scale-to-zero is the destination if/when triggered by an ADR.
+Migration path: see §11.5 for the schema sketch, and **ADR-0015** for the full story — honest portability matrix (truly portable vs. needs-abstraction code paths), the `RetrievalBackend` interface that makes vector + FTS code paths swappable behind a thin protocol, the objective scale triggers, and a tested 1–2-day migration playbook. ADR-0015 also corrects a misconception about SQLite WAL under multi-user load with actual write-throughput numbers — short version: 30+ concurrent users at our write profile is well within SQLite's envelope; "second user breaks it" is folklore, not measurement.
 
 ### 10.5 KB UI
 
@@ -1315,3 +1331,4 @@ Kno v1 is "shipped" when:
 | 2026-05-12 | v0.4 | **Reframed as agent harness.** Top-level primitive is now **Workflow** (YAML + markdown + skills, Larson-style). **Skills** as canonical reusable unit (Anthropic Skills pattern). Sub-agents demoted to an internal spawn mechanism. **Python-only** — Go dropped. **API-first** — `/api/*` canonical, `/ui/*` HTMX consumes the same services. **Multi-provider OAuth** from day one (Google, Slack, Notion, Granola, GitHub) with encrypted token vault. **Observability** as a first-class concern: `runs` table + `/ui/runs`. |
 | 2026-05-12 | v0.5 | **Agents are now a first-class primitive** alongside Skills and Workflows (composable; directly invokable). **Boards** (workflow kind composing multiple agents) added with synthesizer. **GitHub is canonical**: Hugo source repos in `dvhthomas/`, `calcmark/`, `alwaysmap/` are the KB ingestion path (no HTML crawling); GitHub repo URLs are first-class workflow artifacts. **`data/` may optionally be a git repo** with `KNO_DATA_GIT_REMOTE`. OQ-3 resolved; OQ-9 and OQ-10 added. |
 | 2026-05-12 | v0.6 | Renamed **Board → Panel of Experts** (clearer). New **§10 Knowledge Base** unifies multi-source ingestion (Hugo repo, generic GitHub repo, Google Drive folder, direct upload PDF/MD/TXT, HTTP fallback). Substrate question ("pgvector?") answered with explicit scale math — sticking with sqlite-vec for v1. New **§13 Action Approval & Side-Effect Policy**: every external write or message requires approval; `external_messaging` requires typed confirmation; `irreversible` requires typed confirmation + cooldown. Fail-closed default. Addressed the "soul / constitution" question directly: no constitution file needed — persona.md is the soul; approval gates are the runtime safeguard. Sections §10–§22 renumbered to §11–§24 to make room. OQ-11 (initial policy.yaml) and OQ-12 (CLI approval UX) added. |
+| 2026-05-12 | v0.7 | **Local-on-laptop is a first-class supported deployment mode** (§1 "Deployment modes"), not a dev artifact. Same FastAPI codebase; runtime choice. §4 Hosting row updated. Substrate portability hardened in §10.4: explicit pointer to ADR-0015 which carries the `RetrievalBackend` interface, the honest portability matrix (truly portable / portable with care / needs abstraction), and objective scale-triggers for the Postgres migration. Misconception ("SQLite breaks at multi-user") explicitly addressed in ADR-0015 §3 with write-throughput numbers. |
