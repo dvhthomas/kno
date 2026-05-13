@@ -218,6 +218,32 @@ The `.github/workflows/labels.yml` workflow runs automatically on push and creat
 
 ---
 
+## Rule enforcement — three layers
+
+Dev-flow rules are enforced by tooling, not by trust. Per [feedback-enforce-rules-systemically], the un-bypassable layer lives server-side; client-side hooks are *fast feedback only*.
+
+| Layer | Mechanism | Bypass | Catches |
+|---|---|---|---|
+| **GitHub branch protection** on `main` | repo setting | admin-only, deliberate | direct push to `main`, force-push, branch delete |
+| **`.github/workflows/pr-validate.yml`** | runs on `pull_request` open/edit | none | bad branch name, missing `Closes #N`, linked issue missing type/area labels |
+| **`.github/workflows/enforce-issue-close.yml`** | runs on `issues: closed` | none | issue closed without a PR/commit/issue reference (reopens with explanation) |
+| **`.githooks/commit-msg`** | client-side, `git commit` time | `git commit --no-verify` | non-conventional commit subject |
+| **`.githooks/pre-push`** | client-side, `git push` time | `git push --no-verify` | bad branch name |
+
+### Activating the client-side hooks (per clone)
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Run this once after cloning. The hooks are written in POSIX `sh` (no bashisms) so they work on macOS / Linux / Windows with Git Bash or WSL. They're intentionally bypassable via `--no-verify` — the binding gate is the server-side Action, not the local hook.
+
+### What if a rule needs to relax temporarily
+
+Don't bypass — *change the rule* in `.github/workflows/pr-validate.yml`, open a PR, get it merged, then proceed. The whole point is that the rule is the boss; the agent isn't.
+
+---
+
 ## Flow data — checking the repo's health
 
 `dvhthomas/flowmetrics` provides Vacanti-style metrics (cycle time p85, throughput, aging WIP, Monte Carlo forecasts) read straight from the GitHub API + the labels set by `project-label-sync`. Two invocation patterns from outside the flowmetrics checkout:
