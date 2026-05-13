@@ -16,7 +16,7 @@ Conventions:
 ## Pre-flight (target: 2–3 days)
 
 - [x] **P0-pre.1**: Resolve OQ-2 (gh-velocity output shape). **[B][F]** — **Resolved 2026-05-12.**
-  - Resolution: `docs/notes/gh-velocity.md`. Summary: gh-velocity is Dylan's `gh` CLI extension; produces JSON via `-r json`; **dvhthomas/flowmetrics** (created same day) covers the Monte Carlo + aging-WIP gap. **Decision: ship two MCP servers** (`gh_velocity` for current state, `flowmetrics` for forecasting) in Phase 1. Tools split as task 1.9a + 1.9b below.
+  - Resolution: `docs/notes/gh-velocity.md` (current section). **v1 ships flowmetrics only**; gh-velocity deferred. flowmetrics covers all four Vacanti metrics + Monte Carlo + aging WIP + flow efficiency + CFD, with a schema-versioned JSON envelope. Drops three operational costs from Phase 1 (`gh` CLI extension install, separate `project`-scope PAT, per-repo `.gh-velocity.yml` config).
 
 - [ ] **P0-pre.2**: Dev environment up. **[B][F]**
   - Acceptance: Python 3.12 via `uv`; Ollama with `nomic-embed-text` + `llama3.1:8b` (or `:70b` if RAM allows); `.env` populated.
@@ -214,24 +214,21 @@ Conventions:
 - Verify: integration test with a real token: `github_repo_summary("dvhthomas/kno")` returns title + description.
 - Files: `src/kno/mcp/servers/github.py`.
 
-### 1.9a `gh_velocity` MCP server **[P with 1.8, 1.9b]** *Depends on 0.7*
-- Acceptance: tools `gh_velocity_cycle_time`, `gh_velocity_throughput`, `gh_velocity_wip`, `gh_velocity_report`. All `read`. Subprocess wraps `gh velocity ... -r json`. Uses `GH_TOKEN` from GitHub connection + `GH_VELOCITY_TOKEN` from new env var. Auto-generates `.gh-velocity.yml` via `gh velocity config preflight` on first call per repo.
-- Verify: integration test against `dvhthomas/kno`; pydantic-validates the parsed JSON against `tests/fixtures/gh_velocity_schema.json` (snapshot captured during implementation per `docs/notes/gh-velocity.md`).
-- Files: `src/kno/mcp/servers/gh_velocity.py`, `tests/integration/test_gh_velocity_mcp.py`, `tests/fixtures/gh_velocity_schema.json`.
-
-### 1.9b `flowmetrics` MCP server **[P with 1.8, 1.9a]** *Depends on 0.7*
-- Acceptance: tools `flowmetrics_when_done`, `flowmetrics_how_many`, `flowmetrics_aging_wip`, `flowmetrics_efficiency`. All `read`. Subprocess wraps `uv run flow ... --format json`. Schema-versioned envelope per flowmetrics docs.
-- Verify: integration test against `dvhthomas/kno`; pydantic-validates the response envelope.
-- Files: `src/kno/mcp/servers/flowmetrics.py`, `tests/integration/test_flowmetrics_mcp.py`.
-- Note: `flowmetrics` was created 2026-05-12 (pre-alpha; no tagged releases). Pin to a specific commit SHA, not a version. Confirm auth env var pattern when wiring.
+### 1.9 `flowmetrics` MCP server **[P with 1.8]** *Depends on 0.7*
+- Acceptance: tools `flowmetrics_cycle_time`, `flowmetrics_throughput`, `flowmetrics_aging_wip`, `flowmetrics_when_done`, `flowmetrics_how_many`, `flowmetrics_efficiency`, `flowmetrics_cfd`. All `read`. Subprocess wraps `uv run flow ... --format json`. Pydantic-validates the schema-versioned envelope against a captured fixture.
+- Verify: integration test against `dvhthomas/kno`; full agent flow: ask flow-coach "how is the kno repo doing this month?" — response cites flowmetrics tool call(s), mentions P85 cycle time + aging WIP + one recommendation.
+- Files: `src/kno/mcp/servers/flowmetrics.py`, `tests/integration/test_flowmetrics_mcp.py`, `tests/fixtures/flowmetrics_envelope.json`.
+- Pinning: pin `dvhthomas/flowmetrics` to a **specific commit SHA**, not a version (pre-alpha as of 2026-05-12; no releases yet). Re-snapshot the fixture envelope on every bump.
+- Auth: confirm flowmetrics' GitHub-token env var pattern during implementation (README doesn't document it as of 2026-05-12). Most likely `GH_TOKEN` standard.
+- **Deferred from v1**: `gh_velocity` MCP server. See `docs/notes/gh-velocity.md` for the trade-off and the triggers that would reintroduce it.
 
 ### 1.10 Simplified approval gate **[B]** *Depends on 0.7, 0.16*
 - Acceptance: per ADR-0018: `read` tools auto-allow; any non-`read` tool triggers `interrupt_before` in LangGraph; UI banner with Approve/Deny only (no typed confirmation, no cooldown). Full 5-category model deferred to v2.
 - Verify: synthetic `write`-category tool: turn pauses; click Approve resumes; Deny returns "denied by user" tool result.
 - Files: `src/kno/mcp/host.py` (extension), `src/kno/agent/nodes/tools.py`, `src/kno/web/templates/chat/approval_banner.html`.
 
-### 1.11 Seed: librarian + vacanti workflows + remaining skills **[F]** *Depends on 0.11, 0.12, 1.5, 1.8, 1.9a, 1.9b*
-- Acceptance: workflows `kb-qa` (persona = librarian; tools: `mcp:kb_search`, `mcp:remember_fact`) and `flow-coach` (persona = vacanti; tools: `mcp:gh_velocity`, `mcp:flowmetrics`, `mcp:github`, `mcp:kb_search`, `mcp:remember_fact`). Skills already drafted in pre-flight `data.seed/skills/`.
+### 1.11 Seed: librarian + vacanti workflows + remaining skills **[F]** *Depends on 0.11, 0.12, 1.5, 1.8, 1.9*
+- Acceptance: workflows `kb-qa` (persona = librarian; tools: `mcp:kb_search`, `mcp:remember_fact`) and `flow-coach` (persona = vacanti; tools: `mcp:flowmetrics`, `mcp:github`, `mcp:kb_search`, `mcp:remember_fact`). Skills already drafted in pre-flight `data.seed/skills/`.
 - Verify: `POST /api/data/reload`; both workflows visible in `/ui/chat` picker.
 - Files: `data.seed/workflows/{kb-qa,flow-coach}/{workflow.yaml, persona.md}`.
 
@@ -262,7 +259,7 @@ Conventions:
 ### Phase 1 verification checkpoint
 - [ ] `kno ingest hugo-repo dvhthomas/bitsby-me` → ≥50 chunks; visible in `/ui/kb`.
 - [ ] `kb-qa` returns cited answer to a real query; citations validate (green badges); GitHub source links resolve.
-- [ ] `flow-coach` returns a Vacanti-style summary for `dvhthomas/kno`; mentions p85 cycle time + one recommendation; cost <$0.05.
+- [ ] `flow-coach` returns a Vacanti-style summary for `dvhthomas/kno`; mentions p85 cycle time + one recommendation; mentions aged WIP if any; sourced from `flowmetrics` tool calls. Cost <$0.05.
 - [ ] `kno eval kb-qa` passes all cases; total cost <$0.30.
 - [ ] `kno eval flow-coach` passes all cases.
 - [ ] Prompt-injection battery green (avg ≥8/10).
@@ -337,9 +334,11 @@ Conventions:
 
 ---
 
-## Deferred to v2 (per ADR-0018)
+## Deferred to v2 (per ADR-0018 and subsequent decisions)
 
 Captured here so they're visible and not forgotten:
+
+- **`gh_velocity` MCP server** — deferred per `docs/notes/gh-velocity.md` (post-pre-flight review). flowmetrics covers v1 needs; gh-velocity returns to the table if specific triggers fire (see notes file).
 
 - Multi-user: allowlist enforcement, isolation CI battery, invite flow, per-user budget caps, comprehensive `UserScopedSession` tests
 - Panel of Experts (entire workflow kind, panelist agents, integrator, structured-output node, partial-failure handling, per-panelist drill-down) — ADRs 0007, 0008, 0009

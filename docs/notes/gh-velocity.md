@@ -1,16 +1,53 @@
-# OQ-2 resolution: gh-velocity (and flowmetrics) integration
+# OQ-2 resolution: flowmetrics-primary for v1; gh-velocity deferred
 
-**Status:** Resolved 2026-05-12
-**Spec refs:** spec §1 use cases · `docs/tasks.md` P0-pre.1 · Phase 1 tasks 1.9
-**Related:** `docs/adr/0018-kno-lite-scope.md` (v1 scope)
+**Status:** Resolved 2026-05-12 (updated same day after owner review)
+**Spec refs:** spec §1 use cases · `docs/tasks.md` P0-pre.1, 1.9 · ADR-0018 (Kno-Lite v1 scope)
 
 ---
 
-## TL;DR
+## TL;DR (current decision)
 
-- **`gh-velocity` exists** at `github.com/dvhthomas/gh-velocity` (Dylan's project). It's a **`gh` CLI extension** in Go. Machine-readable output via `-r json`. Installed as `gh extension install dvhthomas/gh-velocity`. Latest release `v0.1.11`.
-- **`dvhthomas/flowmetrics`** is Dylan's other project — created **today (2026-05-12)**. Python (`uv run flow ...`). Schema-versioned JSON envelope output (`--format json`). Has the forecasting + aging-WIP that gh-velocity doesn't.
-- **Decision: ship two MCP servers** in v1's Phase 1: `gh_velocity` (current state metrics) and `flowmetrics` (forecasting + aging). Both are subprocess wrappers; both fit cleanly into `flow-coach`'s tool allowlist.
+- **v1 ships ONE MCP server: `flowmetrics`** (`github.com/dvhthomas/flowmetrics`, Python, `uv run flow ...`, schema-versioned JSON envelope). It covers all four Vacanti metrics including P85 + Monte Carlo + aging WIP + flow efficiency + CFD.
+- **gh-velocity is deferred from v1.** It works and is more mature, but for Kno-Lite the operational cost (extra `gh` CLI extension install, separate `project`-scope PAT, per-repo `.gh-velocity.yml` config, undocumented JSON schema) doesn't earn its place against a flowmetrics-only v1 that already serves `flow-coach`.
+- **Tools split** in `tasks.md`: 1.9 → flowmetrics only; gh-velocity moved to the "deferred to v2" list.
+- **Removed from `.env.example`**: `KNO_GH_VELOCITY_TOKEN`.
+
+### Why flowmetrics-first
+
+Trade-off matrix that drove the call:
+
+| | flowmetrics | gh-velocity |
+|---|---|---|
+| Vacanti P85 | ✅ | ❌ (reports P90/P95) |
+| Monte Carlo when-done / how-many | ✅ | ❌ |
+| Aging WIP report | ✅ (explicit) | ⚠️ outlier detection only |
+| Flow efficiency | ✅ | ❌ |
+| CFD | ✅ | ❌ |
+| Cycle time / throughput / WIP basics | ✅ | ✅ |
+| Quality / release reports | ❌ | ✅ |
+| Schema-versioned JSON | ✅ | ⚠️ undocumented |
+| Language fit (Python) | ✅ | Go (subprocess only) |
+| Operational complexity | low (`uv run flow`) | high (gh ext + PAT + .gh-velocity.yml) |
+| Maturity | pre-alpha (created today) | v0.1.11 (~Jan 2026) |
+
+The maturity gap is the main argument *for* gh-velocity. The Vacanti-essential gap (Monte Carlo + aging WIP) is the argument *against*. The owner judged flowmetrics is "marginally more useful for now" — meaning Vacanti essentials beat aggregate reports, even at pre-alpha. The decision is reversible: if flowmetrics churns badly or reveals gaps in 1–2 weeks of daily use, gh-velocity becomes the primary instead. Both projects are owned by Dylan, so the maturity risk is contained.
+
+### When (and how) to revisit
+
+Triggers to add gh-velocity back to v1 or to flip primary/secondary:
+
+1. flowmetrics churns so fast that `tests/fixtures/flowmetrics_schema.json` invalidates weekly.
+2. flowmetrics has a multi-week unfixed bug that gh-velocity wouldn't.
+3. A new flow-coach use case demands gh-velocity's quality/release reports (out of v1 scope today).
+4. gh-velocity becomes a Python library (currently CLI-only), removing the subprocess + extension-install cost.
+
+Until one of those fires, flowmetrics is enough.
+
+---
+
+## Original research (kept for reference)
+
+This file originally documented the two-server decision. The above supersedes it. The remainder of this document is the original gh-velocity research and the alternate two-server plan, kept so future-us can see what was considered.
 
 ## What gh-velocity reports
 

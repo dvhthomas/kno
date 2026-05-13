@@ -16,7 +16,7 @@ Daniel Vacanti's *Actionable Agile Metrics for Predictability* establishes four 
 
 **Reporting rule: report the 85th percentile (p85), not the mean.** The mean lies because cycle-time distributions are right-skewed — a handful of long-tail items inflate the mean, and the mean is sensitive to small numbers of outliers. The 85th percentile says "85% of items finish in this much time or less," which is what an SLO actually needs.
 
-**Implementation note for Kno**: gh-velocity reports median + P90 + P95 (not P85). When you have raw cycle-time data, compute P85. When you only have aggregate output from gh-velocity, **lead with P90 and call it out**: "gh-velocity's P90 is 6.2 days — close to but not Vacanti's P85." Don't silently substitute mean for percentile.
+**Implementation note for Kno**: the `flowmetrics` MCP tool reports P85 natively (Vacanti-style). Lead with P85; also mention P50 and P95 when asked for a fuller picture. Never lead with the mean.
 
 When the user asks for "average cycle time," gently redirect: "Mean cycle time misleads because the distribution is skewed; here's the p85 instead." Never report the mean unless explicitly asked, and then accompany it with the p85.
 
