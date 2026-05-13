@@ -23,6 +23,23 @@ The cycle in brief — see `/agent-skills:test` for the full discipline:
 
 **All work in this repo MUST follow [`docs/notes/dev-flow.md`](docs/notes/dev-flow.md): branch naming, PR-based flow, label and board mechanics, conventional commit prefixes, and the closing rule. Non-compliant changes will be rejected out of hand.**
 
+## Strict pre-merge review
+
+**Before `gh pr ready` on any draft PR, the executing agent MUST invoke `Agent(subagent_type="agent-skills:code-reviewer")` against the PR's full diff vs. `main`, post findings as a PR comment, and address every Critical and Important finding. Skipping = rejection.**
+
+**Addressed** means either (a) a follow-up commit the subagent confirms resolves the finding on re-invocation, OR (b) an explicit `wontfix:` PR reply with concrete reasoning.
+
+Additional invocations on top of code-reviewer:
+
+- auth / sessions / secrets / OAuth / user input / external API surface → `agent-skills:security-auditor`
+- test infrastructure (fixtures, `conftest.py`, harness) → `agent-skills:test-engineer`
+
+Phase 1 (agent-discipline-enforced). [#11](https://github.com/dvhthomas/kno/issues/11) tracks the Phase 2 Action that will fail the check when the review comment is absent.
+
+## Strict pre-deploy review
+
+**Before `fly deploy` (or equivalent), the executing agent MUST run `/agent-skills:ship`. No-Go halts the deploy until the listed blockers are resolved.**
+
 ## See also
 
 - [`docs/spec.md`](docs/spec.md) — full design, v1 scope per ADR-0018.
