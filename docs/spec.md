@@ -4,7 +4,9 @@
 > **Owner:** Dylan Thomas (`dvhthomas@gmail.com`)
 > **Last updated:** 2026-05-12
 
-> **v0.7 highlights** (full change log §24): **Local-on-laptop is a first-class supported deployment mode**, not a dev artifact — same code runs at `http://localhost:8000` for personal use or `https://kno.fly.dev` for invitees. Spec §1 made explicit. **Substrate portability is honest**: SQLite ↔ Postgres migration goes through a `RetrievalBackend` interface (1–2 days of focused work when triggered); ADR-0015 carries the playbook and the objective scale triggers that signal the move. Misconception corrected: SQLite WAL does not break "the moment you add a second user" — it serves 30+ concurrent users at our write profile.
+> **v0.8 highlights** (full change log §24): **Unified `kno` entry point.** No separate `kno-cli`; no `kno chat`. The browser is canonical for chat and approval. `uv run kno serve` runs the FastAPI server; `uv run kno <subcommand>` covers ops (backup, restore, eval, policy lint, ingest, data reload, workflows list). Approval flow is browser-only (§13). OQ-12 (CLI approval UX) dropped. Spec §5 + §6 simplified accordingly.
+>
+> **v0.7 highlights:** Local-on-laptop as a first-class deployment mode. ADR-0015 added with honest substrate portability matrix and SQLite scale-trigger thresholds.
 >
 > **v0.6 highlights:** Renamed Board → Panel of Experts. §10 Knowledge Base unifies multi-source ingestion. §13 Action Approval & Side-Effect Policy with fail-closed default.
 >
@@ -28,7 +30,7 @@ Kno runs as a single Python FastAPI server. Where that server lives is a deploym
 
 | Mode | Where it runs | When it makes sense |
 |---|---|---|
-| **Local on laptop** | `uv run kno-server` on your own machine; accessed at `http://localhost:8000` | Personal solo use; offline-resilient; data never leaves the machine; no hosting cost |
+| **Local on laptop** | `uv run kno serve` on your own machine; accessed at `http://localhost:8000` | Personal solo use; offline-resilient; data never leaves the machine; no hosting cost |
 | **Hosted on Fly.io** (default for invited users) | `fly deploy` to a single Fly machine; accessed at `https://kno.fly.dev` (or custom domain) | Inviting others; access from phone / work laptop; Slack adapter (v2); scheduled triggers (v2) |
 | **Self-hosted server** | Hetzner VPS / homelab Linux box / Docker on your own server | Owner is sysadmin-comfortable; wants to avoid Fly billing |
 
@@ -125,7 +127,7 @@ These are the rules. Every section below has to defend itself against these.
 - **OQ-9:** Git-backed `data/` mode — ship in v1 (opt-in flag) or v2? Argues for v1 because the implementation is small (a `subprocess.run(["git", ...])` wrapper) and gives free backup/history.
 - **OQ-10:** Panel-of-Experts workflows — which orchestration variant in v1? Concurrent (all agents respond to same input, synthesizer integrates) is cheapest and proposed default; debate/round-robin v2.
 - **OQ-11:** Initial `action_category` assignments for known MCP tools — pre-resolve so we don't ship anything fail-open. Action: write `data.seed/policy.yaml` and check it in.
-- **OQ-12:** Approval UX for the CLI — does `kno-cli chat` block on pending approvals (blocking prompt), or does it require switching to the browser? Defaulting to "blocking prompt in TTY" if the CLI is interactive; "fail with link" if non-TTY.
+- ~~**OQ-12:**~~ → **Resolved (v0.8)**: dropped. No CLI chat; approval is browser-only.
 - **OQ-13:** When (not if) to revisit DSPy as an *offline* prompt-optimization tool. Two natural triggers: (a) the router prompt's per-call cost becomes the dominant ledger line, or (b) we accumulate ≥ 50 labeled runs per workflow and the `/admin/refine` flow (§14) is being used regularly. See §22.
 - **OQ-14:** Exact lint rules for the workflow/agent diff that force at least `minor` bump (§14.3). Initial list: any change under `tools.*`, `agent:`, `agents:` (panel), `model_override:`, `synthesizer:`, `input_schema:`, `output_schema:`. Whitespace-only and comment-only diffs may be `patch`. Confirm the list before implementation.
 
@@ -166,16 +168,27 @@ These are the rules. Every section below has to defend itself against these.
 All run via `uv` — venv is implicit.
 
 ```bash
-# Dev
+# All commands go through a single `kno` entry point.
+# `pyproject.toml` exposes `kno = "kno.cli:main"`; pipx-installable for
+# convenience: `pipx install -e .` puts `kno` on $PATH system-wide.
+
+# Server
 uv sync
-uv run kno-server --reload                       # FastAPI on :8000
+uv run kno serve --reload                        # FastAPI on :8000
 uv run alembic upgrade head
-uv run kno-cli chat --workflow flow-coach        # Python CLI (Typer); calls /api/chat
-uv run kno-cli chat --agent vacanti              # chat with one agent directly
-uv run kno-cli agents list
-uv run kno-cli workflows list
-uv run kno-cli reload                            # re-scan data/{agents,workflows,skills}/
-uv run kno-cli data sync                         # if git-backed: pull + commit pending UI edits
+
+# Ops (no running server required unless noted)
+uv run kno backup                                # VACUUMs kno.db, tars data/, writes archive
+uv run kno backup --config-only                  # only YAML/MD/TXT under data/, no SQLite
+uv run kno restore <archive>                     # safety-prompted; reverses a backup
+uv run kno eval <workflow>                       # runs the workflow's eval suite
+uv run kno policy lint                           # validates data/policy.yaml against tool decls
+uv run kno data reload                           # re-scan data/{agents,workflows,skills}/ (requires running server)
+uv run kno data sync                             # git-backed mode: pull + commit pending UI edits
+uv run kno ingest hugo-repo <repo>               # ingest a Hugo source repo into the KB
+uv run kno ingest upload <path>                  # ingest a local file
+uv run kno workflows list                        # read-only convenience (calls /api/workflows on running server)
+uv run kno agents list                           # ditto
 
 # Tests
 uv run pytest
@@ -336,12 +349,25 @@ kno/
 │   │   ├── caching.py           # anthropic-direct for cache_control
 │   │   └── ledger.py
 │   │
-│   ├── cli/                     # Typer CLI — just hits /api over HTTP
-│   │   ├── main.py
-│   │   ├── chat.py
-│   │   ├── workflows.py
-│   │   └── skills.py
+│   ├── cli/                     # Unified `kno` entry point (Typer)
+│   │   ├── main.py              # Typer app; dispatches to subcommand modules
+│   │   ├── serve.py             # `kno serve` — boots FastAPI via uvicorn
+│   │   ├── backup.py            # `kno backup [--config-only]` / `kno restore`
+│   │   ├── eval.py              # `kno eval <workflow>` — calls services.evals
+│   │   ├── policy.py            # `kno policy lint` — calls services.policy
+│   │   ├── data.py              # `kno data reload` / `kno data sync`
+│   │   ├── ingest.py            # `kno ingest <source> ...` — calls services.kb
+│   │   └── inspect.py           # `kno workflows list`, `kno agents list` etc. (read-only)
 │   │
+│   # Thin wrappers — each subcommand is <50 LOC. Heavy lifting lives in services/.
+│   # Subcommands that DON'T need a running server (backup, restore, eval, policy
+│   # lint, ingest) act on the local data/ dir directly.
+│   # Subcommands that DO need a running server (data reload, inspect) hit
+│   # http://localhost:<port> via httpx, surfacing a clear error if no server.
+│   #
+│   # NOT in v1: `kno chat`. The browser is canonical for chat and approval.
+│   #
+
 │   ├── db/
 │   │   ├── models.py
 │   │   └── session.py           # UserScopedSession wrapper
@@ -710,7 +736,7 @@ $EDITOR data/workflows/coaching-chat/workflow.yaml
 
 # 4. reload
 curl -X POST http://localhost:8000/api/data/reload   # or hit the UI button
-# (in git-backed mode: `kno-cli data sync` instead — pulls + commits + reloads)
+# (in git-backed mode: `kno data sync` instead — pulls + commits + reloads)
 ```
 
 `POST /api/data/reload` is idempotent and cheap (just rescans `data/` and updates the in-memory registries).
@@ -881,7 +907,7 @@ If `KNO_DATA_GIT_REMOTE` is set (e.g. `git@github.com:dvhthomas/kno-data.git`):
 1. **On boot:** if `data/` is empty, clone the remote. Otherwise `git pull --rebase`.
 2. **On every UI write** (`PATCH /api/agents/...`, etc.): the service writes the file *and* `git add` + `git commit -m "<verb> <slug> via UI by <user_email>"`. Commit author = the requesting user's email.
 3. **Periodic reconcile:** background task runs `git pull --rebase` every 5 min. Conflicts on the file-per-entity layout are vanishingly rare; if one occurs, the affected entity is marked `conflict` in DB and surfaced in `/ui/data` for manual resolution. **Nothing is auto-merged on a conflict.**
-4. **CLI:** `kno-cli data sync` triggers an immediate pull + push of pending commits.
+4. **CLI:** `kno data sync` triggers an immediate pull + push of pending commits.
 5. **What's NOT in git:** `kno.db`, `kno.db-wal`, `data/kb/` (cloned source repos are reproducible from `kb_repos` table). Enforced by a managed `.gitignore`.
 
 Deploy key with read+write on the data repo is provisioned via Fly secret `KNO_DATA_GIT_SSH_KEY`.
@@ -938,8 +964,7 @@ synth ──► tool_node ──► [category lookup] ──► run_tool
 - **State persists** — the agent run is checkpointed; you can come back hours later and the pending action is still there.
 - **Approval surfaces:**
   - Browser: `/ui/runs/<id>` shows pending actions in a banner; the chat SSE stream surfaces them inline ("Kno wants to send this Slack message: [preview] [Approve] [Deny]").
-  - CLI: `kno-cli runs pending` lists; `kno-cli runs approve <run_id> <action_id>` resumes. Interactive `kno-cli chat` blocks in TTY with a prompt; non-TTY fails with a link (OQ-12).
-  - Slack adapter (v2): DM-based approval, but **outbound Slack still requires UI/CLI approval** — the Slack channel doesn't unlock itself.
+  - Slack adapter (v2): DM-based approval surface, but outbound Slack actions still pause in the same way — approval happens in the browser UI; the Slack DM is a notification channel pointing at `/ui/runs/<id>`.
 
 ### 13.4 Policy file (`data/policy.yaml`)
 
@@ -1054,7 +1079,7 @@ Per workflow: `data/evals/<workflow>/cases.yaml`. Hand-written rubric cases, kep
     judge: "Does the answer surface aged items > 2× median cycle time?"
 ```
 
-Runner: `kno-cli eval <workflow>` runs every case against the current workflow version, scores via an LLM-as-judge (Haiku, cheap) against the rubric, prints a table:
+Runner: `kno eval <workflow>` runs every case against the current workflow version, scores via an LLM-as-judge (Haiku, cheap) against the rubric, prints a table:
 
 ```
 flow-coach @ v3 — 12 cases — 10 pass / 2 fail — total $0.41
@@ -1262,14 +1287,13 @@ Spec is "done" when:
 Kno v1 is "shipped" when:
 - [ ] `POST /api/chat` returns a useful, cited answer to a `bitsby.me` knowledge question, **sourced from the Hugo repo not HTML crawl** (integration test green).
 - [ ] `/ui/chat` does the same in a browser via SSE.
-- [ ] `uv run kno-cli chat` does the same from a terminal (Python CLI hitting `/api`).
 - [ ] A second invited user can log in and use Kno with full data isolation (isolation test green).
 - [ ] I can connect Google + GitHub from `/ui/connections`; both tokens roundtrip encrypted; Flow Coach uses the GitHub token.
 - [ ] I add a new **agent** + a new **chat workflow** that uses it by editing files only — no Python — and invoke both via `/api/chat`.
 - [ ] I run **`program-review-panel`** on a GitHub repo URL; the response shows 3–5 distinct panelist perspectives with attribution + an integrator synthesis; the run cost is under $2.
 - [ ] `/ui/runs` shows every run (chat and panel) with cost, tool calls, retrieved chunks, full prompts, and per-panelist drill-down for panels.
 - [ ] 👍 / 👎 + comment feedback works on every message and every run; ratings persist in `run_feedback`.
-- [ ] `kno-cli eval flow-coach` runs the eval suite and prints pass/fail per case with cost. Same suite runs automatically when I save a new version of a workflow.
+- [ ] `kno eval flow-coach` runs the eval suite and prints pass/fail per case with cost. Same suite runs automatically when I save a new version of a workflow.
 - [ ] `/admin/refine` page: pick a workflow + 👎 runs from last 14 days → Claude proposes a prompt diff → I approve → new version. The cycle completes end-to-end on a real failure case.
 - [ ] When the agent tries to call any tool with `action_category >= external_write`, the run pauses and the approval surfaces in the UI; nothing executes until I click Approve (or type the confirmation phrase for `external_messaging` / `irreversible`).
 - [ ] Audit log at `/admin/approvals` shows every approve/deny decision; deletions disallowed.
@@ -1332,3 +1356,4 @@ Kno v1 is "shipped" when:
 | 2026-05-12 | v0.5 | **Agents are now a first-class primitive** alongside Skills and Workflows (composable; directly invokable). **Boards** (workflow kind composing multiple agents) added with synthesizer. **GitHub is canonical**: Hugo source repos in `dvhthomas/`, `calcmark/`, `alwaysmap/` are the KB ingestion path (no HTML crawling); GitHub repo URLs are first-class workflow artifacts. **`data/` may optionally be a git repo** with `KNO_DATA_GIT_REMOTE`. OQ-3 resolved; OQ-9 and OQ-10 added. |
 | 2026-05-12 | v0.6 | Renamed **Board → Panel of Experts** (clearer). New **§10 Knowledge Base** unifies multi-source ingestion (Hugo repo, generic GitHub repo, Google Drive folder, direct upload PDF/MD/TXT, HTTP fallback). Substrate question ("pgvector?") answered with explicit scale math — sticking with sqlite-vec for v1. New **§13 Action Approval & Side-Effect Policy**: every external write or message requires approval; `external_messaging` requires typed confirmation; `irreversible` requires typed confirmation + cooldown. Fail-closed default. Addressed the "soul / constitution" question directly: no constitution file needed — persona.md is the soul; approval gates are the runtime safeguard. Sections §10–§22 renumbered to §11–§24 to make room. OQ-11 (initial policy.yaml) and OQ-12 (CLI approval UX) added. |
 | 2026-05-12 | v0.7 | **Local-on-laptop is a first-class supported deployment mode** (§1 "Deployment modes"), not a dev artifact. Same FastAPI codebase; runtime choice. §4 Hosting row updated. Substrate portability hardened in §10.4: explicit pointer to ADR-0015 which carries the `RetrievalBackend` interface, the honest portability matrix (truly portable / portable with care / needs abstraction), and objective scale-triggers for the Postgres migration. Misconception ("SQLite breaks at multi-user") explicitly addressed in ADR-0015 §3 with write-throughput numbers. |
+| 2026-05-12 | v0.8 | **Unified `kno` entry point**; dropped the separate `kno-cli`. No `kno chat` (browser is canonical for chat). Approval flow is browser-only; OQ-12 dropped. §5 Commands collapsed to one `kno <subcommand>` block. §6 Project Structure: `src/kno/cli/` is now a thin Typer wrapper that dispatches to `services/`. §13.3 approval surface section trimmed. Phase 3 task 3.10 (CLI approval UX) deleted from tasks.md. |

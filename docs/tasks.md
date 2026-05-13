@@ -257,7 +257,7 @@ Conventions:
 - Files: `docs/adr/0015-kb-substrate-sqlite-vec.md`.
 
 ### Phase 2 — Verification checkpoint
-- [ ] `kno-cli ingest hugo-repo dvhthomas/bitsby-me` → ≥100 chunks; visible in `/ui/kb`.
+- [ ] `kno ingest hugo-repo dvhthomas/bitsby-me` → ≥100 chunks; visible in `/ui/kb`.
 - [ ] Ingest a Drive folder with mixed content → all files indexed.
 - [ ] Upload a PDF → indexed with chunk count visible.
 - [ ] `kb-qa` returns a cited answer; citations link to the original GitHub source.
@@ -284,7 +284,7 @@ Conventions:
 - Files: edits to `src/kno/mcp/servers/{github, ghvelocity, kb_search}.py`, plus `tests/integration/test_tool_categories.py`.
 
 ### 3.4 policy.yaml loader + lint **[F]** *Depends on 3.1*
-- Acceptance: `kno.services.policy` parses the YAML; `kno-cli policy lint` validates no category is downgraded vs tool's self-declared category; refuses to start the server if lint fails.
+- Acceptance: `kno.services.policy` parses the YAML; `kno policy lint` validates no category is downgraded vs tool's self-declared category; refuses to start the server if lint fails.
 - Verify: synthetic test: write a policy that downgrades a tool's category → server boot fails with clear error.
 - Files: `src/kno/services/policy.py`, `src/kno/cli/policy.py`.
 
@@ -313,12 +313,7 @@ Conventions:
 - Verify: gated by `KNO_DEV_MODE=true`; not loaded in prod.
 - Files: `src/kno/mcp/servers/test_approval.py`.
 
-### 3.10 CLI approval UX **[F]** *Depends on 3.6, OQ-12*
-- Acceptance: `kno-cli runs pending` lists; `kno-cli runs approve <run_id> <action_id>`. Interactive `kno-cli chat` blocks in TTY with prompt; non-TTY fails with link to `/ui/runs/<id>`.
-- Verify: manual test in both TTY and non-TTY contexts.
-- Files: `src/kno/cli/runs.py`.
-
-### 3.11 ADR draft: 0016 **[F]**
+### 3.10 ADR draft: 0016 **[F]**
 - Files: `docs/adr/0016-interrupt-resume-semantics.md`.
 
 ### Phase 3 — Verification checkpoint
@@ -420,8 +415,8 @@ Conventions:
 - Files: `src/kno/api/routes/feedback.py`, `src/kno/web/templates/chat/feedback_buttons.html`.
 
 ### 5.3 Eval schema + runner **[P with 5.2]** *Depends on 5.1*
-- Acceptance: `data/evals/<workflow>/cases.yaml` parser; `kno-cli eval <workflow>` runs each case against current version; LLM-as-judge using Haiku; persists `eval_runs` + `eval_case_results`; prints pass/fail/cost table.
-- Verify: write 5 cases for `flow-coach`; `kno-cli eval flow-coach` runs them; results in DB.
+- Acceptance: `data/evals/<workflow>/cases.yaml` parser; `kno eval <workflow>` runs each case against current version; LLM-as-judge using Haiku; persists `eval_runs` + `eval_case_results`; prints pass/fail/cost table.
+- Verify: write 5 cases for `flow-coach`; `kno eval flow-coach` runs them; results in DB.
 - Files: `src/kno/services/evals.py`, `src/kno/cli/evals.py`, `data.seed/evals/flow-coach/cases.yaml`.
 
 ### 5.4 Save-version UI with bump-level radio **[B]** *Depends on 5.3*
@@ -453,7 +448,7 @@ Conventions:
 
 ### Phase 5 — Verification checkpoint
 - [ ] 👍/👎 + comment work on every message and run.
-- [ ] `kno-cli eval flow-coach` runs and prints results.
+- [ ] `kno eval flow-coach` runs and prints results.
 - [ ] Save a `minor` edit → eval auto-runs; diff visible.
 - [ ] Save a `patch` change with a tools.* diff → lint blocks.
 - [ ] `/admin/refine` cycle completes on a 👎 run; new version active; eval ran.
