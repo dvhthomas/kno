@@ -1,0 +1,98 @@
+# Server-side enforcement of docs/notes/dev-flow.md rules. Cannot be bypassed
+# by `--no-verify` (that only skips client-side git hooks). Pairs with the
+# branch protection on `main` and the client-side hooks in `.githooks/`.
+
+name: PR validate
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  pull-requests: read
+  issues: read
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const branch = pr.head.ref;
+            const body = pr.body || "";
+            const failures = [];
+
+            // ─── Rule 1: branch name pattern ──────────────────────────────
+            const BRANCH_RE = /^(feat|fix|chore|docs|refactor|ci|build|test)\/[0-9]+-[a-z0-9-]+$/;
+            if (!BRANCH_RE.test(branch)) {
+              failures.push(
+                `Branch name \`${branch}\` does not match \`<type>/<issue#>-<slug>\`.\n` +
+                `  Allowed types: feat, fix, chore, docs, refactor, ci, build, test\n` +
+                `  Example: feat/12-google-oauth`
+              );
+            }
+
+            // ─── Rule 2: PR body has Closes|Fixes|Resolves #N ─────────────
+            const CLOSES_RE = /\b(?:Closes|Fixes|Resolves)\s+#(\d+)\b/i;
+            const closesMatch = body.match(CLOSES_RE);
+            if (!closesMatch) {
+              failures.push(
+                `PR body lacks a closing reference. Add \`Closes #<n>\` (or Fixes / Resolves)\n` +
+                `  pointing at the issue this PR completes.`
+              );
+            }
+
+            // ─── Rule 3: linked issue has type + area labels ──────────────
+            if (closesMatch) {
+              const issueNum = parseInt(closesMatch[1], 10);
+              try {
+                const { data: issue } = await github.rest.issues.get({
+                  ...context.repo,
+                  issue_number: issueNum,
+                });
+                const labels = issue.labels.map(l => (typeof l === "string" ? l : l.name));
+                const TYPE_LABELS = new Set(["enhancement", "bug", "documentation", "chore"]);
+                const hasType = labels.some(l => TYPE_LABELS.has(l));
+                const hasArea = labels.some(l => l.startsWith("area:"));
+                if (!hasType) {
+                  failures.push(
+                    `Linked issue #${issueNum} lacks a type label.\n` +
+                    `  Add one of: enhancement, bug, documentation, chore`
+                  );
+                }
+                if (!hasArea) {
+                  failures.push(
+                    `Linked issue #${issueNum} lacks an \`area:*\` label.\n` +
+                    `  See .github/labels.yml for the catalogue.`
+                  );
+                }
+
+                // Soft check: branch issue # should match Closes #N (warn only).
+                const branchIssueMatch = branch.match(/^[a-z]+\/([0-9]+)-/);
+                if (branchIssueMatch && branchIssueMatch[1] !== String(issueNum)) {
+                  core.warning(
+                    `Branch's issue number (${branchIssueMatch[1]}) doesn't match Closes #${issueNum}. ` +
+                    `One PR can validly close multiple issues — flagging in case it's a typo.`
+                  );
+                }
+              } catch (err) {
+                if (err.status === 404) {
+                  failures.push(`Linked issue #${issueNum} does not exist.`);
+                } else {
+                  throw err;
+                }
+              }
+            }
+
+            // ─── Result ───────────────────────────────────────────────────
+            if (failures.length > 0) {
+              const msg =
+                "PR validation failed. Fix the following per docs/notes/dev-flow.md:\n\n" +
+                failures.map((f, i) => `${i + 1}. ${f}`).join("\n\n");
+              core.setFailed(msg);
+            } else {
+              core.info("All PR validation rules passed.");
+            }

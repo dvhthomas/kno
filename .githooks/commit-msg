@@ -1,0 +1,44 @@
+#!/bin/sh
+# Reject commits whose subject doesn't match conventional-commit format.
+# Activate per clone: `git config core.hooksPath .githooks`
+# Bypass (use sparingly): `git commit --no-verify`
+#
+# Pairs with server-side PR-validate Action — this hook is fast feedback,
+# not the binding enforcement.
+
+set -eu
+
+msg_file="$1"
+subject=$(head -n1 "$msg_file")
+
+# Allow merge / fixup / squash / amend / revert through unchanged.
+case "$subject" in
+  Merge*|fixup!*|squash!*|amend!*|Revert*) exit 0 ;;
+esac
+
+pattern='^(feat|fix|chore|docs|refactor|ci|build|test)(\([a-z0-9-]+\))?: .+$'
+
+if ! printf '%s\n' "$subject" | grep -Eq "$pattern"; then
+  cat >&2 <<EOF
+
+✗ Commit message rejected.
+
+Subject was:
+  $subject
+
+Required pattern:
+  <type>(<scope>)?: <description>
+
+  Types:  feat | fix | chore | docs | refactor | ci | build | test
+  Scope:  optional, lowercase, e.g. (web) (cli) (infra) (deps)
+
+Examples:
+  feat(web): /api/health returns 200
+  fix: enforce-issue-close detects merged PR
+  chore(deps): bump pydantic to 2.8
+
+Bypass (use sparingly):  git commit --no-verify
+See:                     docs/notes/dev-flow.md → Conventional commit prefixes
+EOF
+  exit 1
+fi
