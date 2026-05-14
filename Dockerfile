@@ -48,6 +48,8 @@ USER kno
 EXPOSE 8080
 
 # Local docker healthcheck — pairs with Fly's http_service.checks for prod.
+# `start-period=20s` intentionally matches fly.toml's `grace_period=20s` for
+# Alpine cold-start; if you bump one, bump the other.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD wget -qO- http://127.0.0.1:8080/api/health || exit 1
 

@@ -138,8 +138,10 @@ class TestContainerBehavior:
                 )
             yield base
         finally:
+            # 25s > uvicorn's --timeout-graceful-shutdown=20s so we don't race
+            # the runtime budget on slow hosts.
             subprocess.run(
-                ["docker", "stop", cid], capture_output=True, check=False, timeout=10
+                ["docker", "stop", cid], capture_output=True, check=False, timeout=25
             )
 
     def test_health_returns_not_configured(self, running_container: str) -> None:
