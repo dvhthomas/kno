@@ -3,7 +3,15 @@
 > **Source plan:** `docs/plan.md` v2 (Kno-Lite scope per ADR-0018)
 > **Source spec:** `docs/spec.md` v0.9 (full design vision; v1 scope per ADR-0018)
 > **Status:** Phase 3 (Tasks), v2 (post-ADR-0018 rewrite)
-> **Last updated:** 2026-05-12
+> **Last updated:** 2026-05-13
+
+## What shipped 2026-05-13
+
+- **Milestone 1 — Hello, Kno** deployed to Fly.io `dfw`. Lenient-boot web shell answers `/api/health` + `/ui/`. PR #2 (web shell), PR #17 (Dockerfile + fly.toml). `docs/ops.md` Milestone 1 complete.
+- Done from this list: 0.1 (skeleton), 0.2 (Settings + providers_status), a slim subset of 0.10 (web shell with `/api/health` + `/ui/` + `kno serve` — full 0.10/0.17 reliability probes deferred), pulled-forward 2.7 (Dockerfile + fly.toml).
+- Emerged from session feedback (not in original plan): full dev-flow enforcement stack — branch protection, PR-validate Action, PR-state label sync, code-reviewer subagent gate, close-with-reference enforcement, conventional-commit + branch-name client hooks. **All workflow logic in `.github/scripts/*.py` with 67 unit tests covering the pure-function cores.** PRs #6 → #8 → #10 → #15.
+
+**Next:** Task 0.3 (DB + migration 0001). Open tracking issues: #16 (workflow script hardening follow-ups), #18 (post-Hello-Kno hardening — security headers, test gaps).
 
 Conventions:
 - `[ ]` open · `[x]` done · `[~]` in progress · `[-]` cancelled · `[v2]` deferred
@@ -34,12 +42,12 @@ Conventions:
 
 ## Phase 0 — Foundation + Chat (target: 2 weeks)
 
-### 0.1 Project skeleton **[B][F]**
+### 0.1 Project skeleton **[B][F]** — `[x]` done 2026-05-13 (PR #1-batch, pre-PR-workflow)
 - Acceptance: `pyproject.toml` with pinned deps (`fastapi`, `uvicorn[standard]`, `httpx`, `pydantic`, `pydantic-settings`, `sqlalchemy`, `aiosqlite`, `alembic`, `litellm`, `langgraph`, `langgraph-checkpoint-sqlite`, `anthropic`, `ollama`, `authlib`, `cryptography`, `mcp`, `python-frontmatter`, `markdown-it-py`, `jinja2`, `typer`, `structlog`); `uv.lock`; ruff + mypy --strict + pytest + pre-commit; **`[tool.poe.tasks]` block** declaring `lint` / `format` / `typecheck` / `test` / `serve` / `migrate`. Install `poethepoet` globally once via `uv tool install poethepoet`. No Makefile.
 - Verify: `uv sync` clean venv; `poe lint` passes; `pre-commit install` succeeds; `poe test` runs 0 tests OK.
 - Files: `pyproject.toml`, `uv.lock`, `.pre-commit-config.yaml`, `tests/conftest.py`.
 
-### 0.2 Config layer **[F]** *Depends on 0.1*
+### 0.2 Config layer **[F]** *Depends on 0.1* — `[x]` done 2026-05-13 (`src/kno/config.py`, `tests/unit/test_config.py`)
 - Acceptance: `kno.config.Settings` (pydantic-settings) loads env vars with the `KNO_` prefix and `.env` file fallback. **Lenient boot** per `docs/ops.md` §0 — Settings must instantiate without any required credentials set. Sensitive fields (API keys, OAuth client secrets, session secret, token encryption key) wrap values in `pydantic.SecretStr` so they don't leak in `repr()` or logs. A `providers_status -> dict[str, bool]` property reports per-provider configured-or-not for `/api/health` (Task 0.10) to surface as `{provider}: ok` vs `{provider}: not_configured`. The fail-fast behavior moves to Phase 2 (setup wizard); v1 pre-wizard is lenient.
 - Verify: unit tests in `tests/unit/test_config.py` covering (a) `Settings()` boots with no env vars; (b) all optional credential fields default to None; (c) sensitive fields are `SecretStr` and their values never appear in `repr(settings)`; (d) `providers_status` correctly reports configured vs not, including the "OAuth needs BOTH id and secret" rule. `.env.example` documents every var.
 - Files: `src/kno/config.py`, `.env.example`, `tests/unit/test_config.py`.
