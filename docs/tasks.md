@@ -7,9 +7,9 @@
 
 ## What shipped 2026-05-13
 
-- **Milestone 1 — Hello, Kno** deployed to Fly.io `dfw`. Lenient-boot web shell answers `/api/health` + `/ui/`. PR #17 (Dockerfile + fly.toml), PR #2 (web shell). `docs/ops.md` Milestone 1 complete.
+- **Milestone 1 — Hello, Kno** deployed to Fly.io `dfw`. Lenient-boot web shell answers `/api/health` + `/ui/`. PR #2 (web shell), PR #17 (Dockerfile + fly.toml). `docs/ops.md` Milestone 1 complete.
 - Done from this list: 0.1 (skeleton), 0.2 (Settings + providers_status), a slim subset of 0.10 (web shell with `/api/health` + `/ui/` + `kno serve` — full 0.10/0.17 reliability probes deferred), pulled-forward 2.7 (Dockerfile + fly.toml).
-- Emerged from session feedback (not in original plan): full dev-flow enforcement stack — branch protection, PR-validate Action, PR-state label sync, code-reviewer subagent gate, close-with-reference enforcement, conventional-commit + branch-name client hooks. **All workflow logic in `.github/scripts/*.py` with 56 unit tests.** PRs #6 / #8 / #10 / #15.
+- Emerged from session feedback (not in original plan): full dev-flow enforcement stack — branch protection, PR-validate Action, PR-state label sync, code-reviewer subagent gate, close-with-reference enforcement, conventional-commit + branch-name client hooks. **All workflow logic in `.github/scripts/*.py` with 67 unit tests covering the pure-function cores.** PRs #6 → #8 → #10 → #15.
 
 **Next:** Task 0.3 (DB + migration 0001). Open tracking issues: #16 (workflow script hardening follow-ups), #18 (post-Hello-Kno hardening — security headers, test gaps).
 
