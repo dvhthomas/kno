@@ -10,12 +10,39 @@ Two layers:
 
 from __future__ import annotations
 
+import json
 import pathlib
+import shutil
+import socket
+import subprocess
+import time
 import tomllib
+import uuid
+from collections.abc import Iterator
 
+import httpx
 import pytest
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
+
+
+def _docker_available() -> bool:
+    if shutil.which("docker") is None:
+        return False
+    try:
+        subprocess.run(
+            ["docker", "info"], capture_output=True, check=True, timeout=5
+        )
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        return False
+    return True
+
+
+def _free_port(host: str = "127.0.0.1") -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind((host, 0))
+        port: int = s.getsockname()[1]
+        return port
 
 
 @pytest.fixture
@@ -45,3 +72,32 @@ class TestFlyTomlShape:
 
     def test_force_https(self, fly_config):
         assert fly_config["http_service"]["force_https"] is True
+
+
+@pytest.mark.docker
+@pytest.mark.skipif(not _docker_available(), reason="docker daemon not available")
+class TestContainerBehavior:
+    """Real-container tests. Skipped unless `--strict-markers` + `poe test-docker`."""
+
+    @pytest.fixture(scope="class")
+    def image_tag(self) -> Iterator[str]:
+        tag = f"kno-deploy-test:{uuid.uuid4().hex[:8]}"
+        result = subprocess.run(
+            ["docker", "build", "-t", tag, "."],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, (
+            f"docker build failed:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+        )
+        try:
+            yield tag
+        finally:
+            subprocess.run(
+                ["docker", "image", "rm", "-f", tag], capture_output=True, check=False
+            )
+
+    def test_image_builds(self, image_tag: str) -> None:
+        # If the image_tag fixture didn't error, the build succeeded.
+        assert image_tag.startswith("kno-deploy-test:")
