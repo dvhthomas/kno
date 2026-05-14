@@ -105,6 +105,8 @@ class TestContainerBehavior:
     def running_container(self, image_tag: str) -> Iterator[str]:
         port = _free_port()
         base = f"http://127.0.0.1:{port}"
+        # `docker run` itself may fail (bad image, port collision); use
+        # check=False + explicit assertion so failure-before-try doesn't leak.
         proc = subprocess.run(
             [
                 "docker", "run", "--rm", "-d",
@@ -112,8 +114,9 @@ class TestContainerBehavior:
                 "--name", f"kno-test-{port}",
                 image_tag,
             ],
-            capture_output=True, text=True, check=True,
+            capture_output=True, text=True, check=False,
         )
+        assert proc.returncode == 0, f"docker run failed: {proc.stderr}"
         cid = proc.stdout.strip()
         try:
             # Poll /api/health for up to 15s; container needs ~1-2s to boot.
@@ -154,3 +157,19 @@ class TestContainerBehavior:
         assert response.status_code == 200
         assert response.headers["content-type"].startswith("text/html")
         assert "Kno is running" in response.text
+
+    def test_image_under_size_budget(self, image_tag: str) -> None:
+        """Guardrail: a careless dep addition shouldn't balloon the image past
+        the budget. Current actual is ~101MB; 200MB leaves headroom for a
+        few more deps but flags a runaway add (e.g., pulling in torch)."""
+        result = subprocess.run(
+            ["docker", "image", "inspect", image_tag, "--format", "{{.Size}}"],
+            capture_output=True, text=True, check=True,
+        )
+        size_bytes = int(result.stdout.strip())
+        budget_bytes = 200 * 1024 * 1024
+        assert size_bytes < budget_bytes, (
+            f"Image is {size_bytes / 1024 / 1024:.1f}MB; budget is "
+            f"{budget_bytes / 1024 / 1024}MB. If this is intentional, raise the "
+            f"budget here with a one-line justification commit."
+        )

@@ -35,11 +35,25 @@ ENV PYTHONUNBUFFERED=1 \
     KNO_HOST=0.0.0.0 \
     KNO_PORT=8080
 
+# Non-root user for defense-in-depth (image is public). Create BEFORE COPY so
+# `--chown` doesn't double the layer size with a separate `chown -R` step.
+RUN adduser -D -u 10001 kno
+
 WORKDIR /app
 
-COPY --from=builder /app /app
+COPY --from=builder --chown=kno:kno /app /app
+
+USER kno
 
 EXPOSE 8080
 
+# Local docker healthcheck — pairs with Fly's http_service.checks for prod.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:8080/api/health || exit 1
+
+# uvicorn finalizes cleaner on SIGINT than SIGTERM; explicit STOPSIGNAL.
+STOPSIGNAL SIGINT
+
 # Skip the `kno serve` CLI shim — one fewer process at PID 1.
-CMD ["uvicorn", "kno.web.app:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "kno.web.app:app", "--host", "0.0.0.0", "--port", "8080", \
+     "--timeout-graceful-shutdown", "20"]
