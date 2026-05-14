@@ -1,0 +1,37 @@
+# Things that should not enter the build context.
+
+# Virtual env (rebuilt inside the container)
+.venv/
+**/.venv/
+
+# Python caches
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Tests + docs + scratch — runtime image doesn't need them
+tests/
+docs/
+assets/
+
+# VCS
+.git/
+.gitignore
+.github/
+
+# IDE
+.vscode/
+.idea/
+
+# Local env
+.env
+.env.*
+!.env.example
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
