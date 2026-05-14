@@ -101,3 +101,57 @@ class TestContainerBehavior:
     def test_image_builds(self, image_tag: str) -> None:
         # If the image_tag fixture didn't error, the build succeeded.
         assert image_tag.startswith("kno-deploy-test:")
+
+    @pytest.fixture
+    def running_container(self, image_tag: str) -> Iterator[str]:
+        port = _free_port()
+        base = f"http://127.0.0.1:{port}"
+        proc = subprocess.run(
+            [
+                "docker", "run", "--rm", "-d",
+                "-p", f"{port}:8080",
+                "--name", f"kno-test-{port}",
+                image_tag,
+            ],
+            capture_output=True, text=True, check=True,
+        )
+        cid = proc.stdout.strip()
+        try:
+            # Poll /api/health for up to 15s; container needs ~1-2s to boot.
+            deadline = time.monotonic() + 15
+            while time.monotonic() < deadline:
+                try:
+                    r = httpx.get(f"{base}/api/health", timeout=0.5)
+                    if r.status_code == 200:
+                        break
+                except httpx.RequestError:
+                    time.sleep(0.2)
+            else:
+                logs = subprocess.run(
+                    ["docker", "logs", cid], capture_output=True, text=True, check=False
+                )
+                raise TimeoutError(
+                    f"Container did not respond on {base}/api/health within 15s.\n"
+                    f"docker logs:\n{logs.stdout}{logs.stderr}"
+                )
+            yield base
+        finally:
+            subprocess.run(
+                ["docker", "stop", cid], capture_output=True, check=False, timeout=10
+            )
+
+    def test_health_returns_not_configured(self, running_container: str) -> None:
+        response = httpx.get(f"{running_container}/api/health")
+        assert response.status_code == 200
+        body = response.json()
+        assert body == {
+            "anthropic": "not_configured",
+            "google_oauth": "not_configured",
+            "github_oauth": "not_configured",
+        }
+
+    def test_ui_root_serves_placeholder(self, running_container: str) -> None:
+        response = httpx.get(f"{running_container}/ui/")
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/html")
+        assert "Kno is running" in response.text
